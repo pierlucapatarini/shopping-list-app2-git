@@ -92,7 +92,7 @@ function FamilyChat() {
                         payload => {
                             setMessages(prevMessages => {
                                 // Cerca se esiste un messaggio temporaneo da sostituire
-                                const tempMsgIndex = prevMessages.findIndex(msg => msg.tempId === payload.new.tempId);
+                                const tempMsgIndex = prevMessages.findIndex(msg => msg.id === payload.new.tempId);
                                 if (tempMsgIndex !== -1) {
                                     // Se esiste, sostituiscilo con il messaggio definitivo di Supabase
                                     const updatedMessages = [...prevMessages];
@@ -171,7 +171,8 @@ function FamilyChat() {
         let fileName = selectedFile?.name || null;
         let fileType = selectedFile?.type || null;
 
-        const tempId = `temp-${Date.now()}`;
+        // Crea un ID temporaneo
+        const tempId = Date.now();
         const content = newMessage || (fileName ? `📎 ${fileName}` : '');
 
         // Aggiungi subito il messaggio temporaneo allo stato
@@ -219,7 +220,6 @@ function FamilyChat() {
                 console.error(error.message);
                 alert(error.message);
                 setUploadingFile(false);
-                setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempId));
                 return;
             } finally {
                 setUploadingFile(false);
@@ -235,8 +235,7 @@ function FamilyChat() {
                 sender_id: user.id,
                 file_url: fileUrl,
                 file_name: fileName,
-                file_type: fileType,
-                tempId: tempId
+                file_type: fileType
             });
 
         if (error) {
@@ -472,7 +471,7 @@ function FamilyChat() {
                             </div>
                         </div>
                     ) : (
-                        messages.map((msg) => (
+                        messages.map((msg, index) => (
                             <div key={msg.id} style={{ width: '100%' }}>
                                 <div style={{ display: 'block', margin: '0 auto', color: '#888', fontSize: '0.75em',
                                     marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.7)',
