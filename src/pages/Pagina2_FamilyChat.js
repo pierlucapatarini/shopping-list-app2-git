@@ -151,7 +151,7 @@ function FamilyChat() {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleSendMessage = async (e) => {
+const handleSendMessage = async (e) => {
         e.preventDefault();
         if ((!newMessage.trim() && !selectedFile) || !familyGroup || !user || uploadingFile) return;
 
@@ -190,6 +190,7 @@ function FamilyChat() {
 
         const content = newMessage || (fileName ? `📎 ${fileName}` : '');
         
+        // Inserisci il messaggio nel database
         const { data, error } = await supabase
             .from('messages')
             .insert({
@@ -206,8 +207,21 @@ function FamilyChat() {
         if (error) {
             console.error('Errore nell\'invio del messaggio:', error);
         } else {
-            // L'aggiornamento dello stato verrà gestito dal listener di Supabase.
-            // Non è necessario fare un ulteriore setMessages qui.
+            // Aggiungi il messaggio appena inviato allo stato localmente per una visualizzazione immediata
+            setMessages(prevMessages => {
+                const messageExists = prevMessages.some(msg => msg.id === data.id);
+                if (messageExists) {
+                    return prevMessages;
+                }
+                return [...prevMessages, {
+                    ...data,
+                    profiles: {
+                        username: user.user_metadata.username
+                    }
+                }];
+            });
+
+            // Resetta i campi di input
             setNewMessage('');
             setSelectedFile(null);
         }
