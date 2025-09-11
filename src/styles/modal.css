@@ -1,0 +1,232 @@
+/* Stili per il modale di analisi */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    width: 90%;
+    max-width: 500px;
+    position: relative;
+}
+
+.large-modal {
+    max-width: 900px;
+}
+
+.analisi-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-top: 20px;
+}
+
+.analisi-table-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.analisi-table-container th, .analisi-table-container td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.analisi-table-container th {
+    background-color: #f2f2f2;
+    position: sticky;
+    top: 0;
+}
+
+.analisi-summary {
+    margin-top: 15px;
+    text-align: right;
+    font-size: 1.2em;
+    padding: 10px;
+    background-color: #f0f8ff;
+    border-radius: 8px;
+}
+
+.filtri-analisi {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+}
+
+.filtri-analisi .form-group {
+    flex: 1;
+    min-width: 150px;
+}
+
+.filtri-analisi input, .filtri-analisi select {
+    width: 100%;
+}
+
+.btn-analisi {
+    background-color: #33a9d41f;
+    color: rgb(0, 0, 0);
+    border: none;
+    padding: 10px 15px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background-color 0.3s;
+    margin-left: 100px;
+}
+
+.btn-analisi:hover {
+    background-color: #0056b3;
+}
+
+/* Stile per lo stato vuoto dell'archivio */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 40px 20px;
+    border: 2px dashed #ccc;
+    border-radius: 12px;
+    background-color: #f9f9f9;
+    color: #555;
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-in-out;
+}
+
+.empty-state p {
+    font-size: 1.2rem;
+    margin: 10px 0;
+    font-weight: 500;
+}
+
+.empty-state .btn-action {
+    margin-top: 20px;
+    padding: 12px 24px;
+    font-size: 1rem;
+    font-weight: bold;
+    color: #fff;
+    background-color: #007bff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.empty-state .btn-action:hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Stile per l'header del modal */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+/* Stile per la sezione di riepilogo */
+.analisi-riepilogo {
+    background-color: #f8f8f8;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.analisi-riepilogo h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    color: #555;
+    border-bottom: 2px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.riepilogo-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.riepilogo-item {
+    font-size: 1.1em;
+    color: #333;
+}
+
+/* Migliorie alla tabella */
+.analisi-table-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.analisi-table-container th, .analisi-table-container td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.analisi-table-container th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #333;
+}
+
+.analisi-table-container tr:nth-child(even) {
+    background-color: #fafafa;
+}
+
+.analisi-table-container tr:hover {
+    background-color: #f5f5f5;
+}
+
+/* Stile per il contenitore del riepilogo */
+.analisi-summary-container {
+    margin-top: 20px;
+}
+
+/* Stile per la tabella dei totali */
+.analisi-summary-container table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.analisi-summary-container th,
+.analisi-summary-container td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center; /* Allinea il testo al centro */
+    font-size: 1.1em;
+}
+
+.analisi-summary-container th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #555;
+    border-bottom: 2px solid #ccc;
+}

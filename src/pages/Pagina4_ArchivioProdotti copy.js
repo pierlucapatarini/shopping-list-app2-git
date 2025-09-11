@@ -1,0 +1,646 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '../supabaseClient';
+import { useNavigate } from 'react-router-dom';
+import '../styles/archivio.css';
+
+// Modal component (rimane invariato)
+const Modal = ({ type, data, categories, onClose, onSave }) => {
+    const [formData, setFormData] = useState({});
+
+    useEffect(() => {
+        if (data) {
+            setFormData(data);
+        }
+    }, [data]);
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        setFormData(prevData => ({
+            ...prevData,
+            [name]: type === 'checkbox' ? checked : value,
+        }));
+    };
+
+    const handleSave = () => {
+        if (type === 'categoria' && formData.name !== data.name) {
+            if (!window.confirm("Attenzione: cambiare il nome di una categoria modificherà tutti i prodotti ad essa collegati. Sei sicuro di voler procedere?")) {
+                return;
+            }
+        }
+
+        const dataToSave = { ...formData };
+        if (dataToSave.categorie) {
+            delete dataToSave.categorie;
+        }
+
+        onSave(dataToSave);
+    };
+
+    if (!data) {
+        return null;
+    }
+
+    return (
+        <div className="modal-overlay">
+            <div className="modal-content">
+                <h3>✏️ Modifica {type === 'prodotto' ? 'Prodotto' : 'Categoria'}</h3>
+                {type === 'prodotto' ? (
+                    <>
+                        <div className="form-group">
+                            <label>Articolo: <span className="obbligatorio">(Obbligatorio)</span></label>
+                            <input name="articolo" value={formData.articolo || ''} onChange={handleChange} />
+                        </div>
+                        <div className="form-group">
+                            <label>Descrizione Articolo:</label>
+                            <input name="descrizione_articolo" value={formData.descrizione_articolo || ''} onChange={handleChange} />
+                        </div>
+                        <div className="form-group">
+                            <label>Prezzo Generale (€):</label>
+                            <input type="number" name="prezzo" value={formData.prezzo || ''} onChange={handleChange} placeholder="0.00" />
+                        </div>
+                        <div className="form-group">
+                            <label>Categoria: <span className="obbligatorio">(Obbligatorio)</span></label>
+                            <select name="categoria_id" value={formData.categoria_id || ''} onChange={handleChange}>
+                                <option value="">Seleziona categoria</option>
+                                {categories.map((cat) => (
+                                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="form-group">
+                            <label>Unità di Misura:</label>
+                            <input name="unita_misura" value={formData.unita_misura || ''} onChange={handleChange} placeholder="Es. kg, l, pz" />
+                        </div>
+                        <div className="form-group checkbox-group">
+                            <input type="checkbox" name="preferito" checked={formData.preferito || false} onChange={handleChange} id="modal-preferito" />
+                            <label htmlFor="modal-preferito">Preferito</label>
+                        </div>
+                        <div className="form-group-column">
+                            <h4>Prezzi Supermercati</h4>
+                            <div className="input-with-label">
+                                <label>Esselunga (€):</label>
+                                <input type="number" name="prezzo_esselunga" value={formData.prezzo_esselunga || ''} onChange={handleChange} placeholder="0.00" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Mercato (€):</label>
+                                <input type="number" name="prezzo_mercato" value={formData.prezzo_mercato || ''} onChange={handleChange} placeholder="0.00" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Carrefour (€):</label>
+                                <input type="number" name="prezzo_carrefour" value={formData.prezzo_carrefour || ''} onChange={handleChange} placeholder="0.00" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Penny (€):</label>
+                                <input type="number" name="prezzo_penny" value={formData.prezzo_penny || ''} onChange={handleChange} placeholder="0.00" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Coop (€):</label>
+                                <input type="number" name="prezzo_coop" value={formData.prezzo_coop || ''} onChange={handleChange} placeholder="0.00" />
+                            </div>
+                        </div>
+                    </>
+                ) : (
+                    <>
+                        <div className="form-group">
+                            <label>Nome Categoria: <span className="obbligatorio">(Obbligatorio)</span></label>
+                            <input name="name" value={formData.name || ''} onChange={handleChange} />
+                        </div>
+                        <div className="form-group-column">
+                            <h4>Corsie Supermercati</h4>
+                            <div className="input-with-label">
+                                <label>Esselunga:</label>
+                                <input name="corsia_esselunga" value={formData.corsia_esselunga || ''} onChange={handleChange} placeholder="Aisle" className="small-input" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Mercato:</label>
+                                <input name="corsia_mercato" value={formData.corsia_mercato || ''} onChange={handleChange} placeholder="Aisle" className="small-input" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Carrefour:</label>
+                                <input name="corsia_carrefour" value={formData.corsia_carrefour || ''} onChange={handleChange} placeholder="Aisle" className="small-input" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Penny:</label>
+                                <input name="corsia_penny" value={formData.corsia_penny || ''} onChange={handleChange} placeholder="Aisle" className="small-input" />
+                            </div>
+                            <div className="input-with-label">
+                                <label>Coop:</label>
+                                <input name="corsia_coop" value={formData.corsia_coop || ''} onChange={handleChange} placeholder="Aisle" className="small-input" />
+                            </div>
+                        </div>
+                    </>
+                )}
+                <div className="modal-actions">
+                    <button className="btn-save" onClick={handleSave}>Salva</button>
+                    <button className="btn-cancel" onClick={onClose}>Annulla</button>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default function Pagina4_ArchivioProdotti() {
+    const [sezioneAttiva, setSezioneAttiva] = useState('prodotti');
+    const [categorie, setCategorie] = useState([]);
+    const [prodotti, setProdotti] = useState([]);
+    const [queryProdotto, setQueryProdotto] = useState('');
+    const [queryCategoria, setQueryCategoria] = useState('');
+    const [prodottiFiltratiCategoria, setProdottiFiltratiCategoria] = useState([]);
+    const [showAddProdForm, setShowAddProdForm] = useState(false);
+    const [showAddCatForm, setShowAddCatForm] = useState(false);
+    const [familyGroup, setFamilyGroup] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [showExistingCategories, setShowExistingCategories] = useState(false);
+    
+    const [formProd, setFormProd] = useState({
+        articolo: '',
+        descrizione_articolo: '',
+        prezzo: '',
+        categoria_id: '',
+        prezzo_esselunga: '',
+        prezzo_mercato: '',
+        prezzo_carrefour: '',
+        prezzo_penny: '',
+        prezzo_coop: '',
+        preferito: false,
+        unita_misura: ''
+    });
+    const [formCat, setFormCat] = useState({
+        name: '',
+        corsia_esselunga: '',
+        corsia_mercato: '',
+        corsia_carrefour: '',
+        corsia_penny: '',
+        corsia_coop: ''
+    });
+
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalType, setModalType] = useState(null);
+    const [modalData, setModalData] = useState(null);
+    const navigate = useNavigate();
+
+    // Gestione dell'autenticazione, del gruppo familiare e fetch dei dati.
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                
+                if (session) {
+                    const userId = session.user.id;
+                    
+                    const { data: profileData, error: profileError } = await supabase
+                        .from('profiles')
+                        .select('family_group')
+                        .eq('id', userId) //  CORREZIONE: usa 'id' invece di 'user_id'
+                        .single();
+
+                    let currentFamilyGroup;
+                    if (profileError || !profileData || !profileData.family_group) {
+                        currentFamilyGroup = crypto.randomUUID();
+                        const { error: updateError } = await supabase
+                            .from('profiles')
+                            .update({ family_group: currentFamilyGroup })
+                            .eq('id', userId); // CORREZIONE: usa 'id' invece di 'user_id'
+                        
+                        if (updateError) {
+                            console.error('Errore durante l\'aggiornamento del family_group:', updateError);
+                            throw new Error('Impossibile assegnare un family group.');
+                        }
+                    } else {
+                        currentFamilyGroup = profileData.family_group;
+                    }
+                    setFamilyGroup(currentFamilyGroup);
+                    
+                    await fetchProdotti(currentFamilyGroup);
+                    await fetchCategorie(currentFamilyGroup);
+                } else {
+                    console.warn('Nessun utente autenticato. Reindirizzamento al login.');
+                }
+            } catch (error) {
+                console.error('Errore nel caricamento dei dati:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    async function fetchProdotti(currentFamilyGroup) {
+        const { data, error } = await supabase
+            .from('prodotti')
+            .select('*, categorie(name, corsia_esselunga, corsia_mercato, corsia_carrefour, corsia_penny, corsia_coop)')
+            .eq('family_group', currentFamilyGroup)
+            .order('articolo', { ascending: true });
+        
+        if (error) {
+            console.error("Errore nel fetch dei prodotti:", error);
+            return;
+        }
+        setProdotti(data || []);
+    }
+
+    async function fetchCategorie(currentFamilyGroup) {
+        const { data, error } = await supabase
+            .from('categorie')
+            .select('*')
+            .eq('family_group', currentFamilyGroup)
+            .order('name', { ascending: true });
+
+        if (error) {
+            console.error("Errore nel fetch delle categorie:", error);
+            return;
+        }
+        setCategorie(data || []);
+    }
+    
+    async function aggiungiProdotto() {
+        if (!formProd.articolo || !formProd.categoria_id) {
+            alert("Il nome dell'articolo e la categoria sono obbligatori.");
+            return;
+        }
+
+        const newProduct = {
+            ...formProd,
+            family_group: familyGroup, 
+            prezzo: formProd.prezzo === '' ? null : parseFloat(formProd.prezzo),
+            prezzo_esselunga: formProd.prezzo_esselunga === '' ? null : parseFloat(formProd.prezzo_esselunga),
+            prezzo_mercato: formProd.prezzo_mercato === '' ? null : parseFloat(formProd.prezzo_mercato),
+            prezzo_carrefour: formProd.prezzo_carrefour === '' ? null : parseFloat(formProd.prezzo_carrefour),
+            prezzo_penny: formProd.prezzo_penny === '' ? null : parseFloat(formProd.prezzo_penny),
+            prezzo_coop: formProd.prezzo_coop === '' ? null : parseFloat(formProd.prezzo_coop),
+        };
+        const { error } = await supabase.from('prodotti').insert(newProduct);
+        if (error) {
+            console.error("Errore nell'inserimento del prodotto:", error);
+            alert("Errore nell'inserimento del prodotto: " + error.message);
+            return;
+        }
+        resetFormProd();
+        await fetchProdotti(familyGroup);
+        setShowAddProdForm(false);
+    }
+    
+    async function aggiungiCategoria() {
+        if (!formCat.name) {
+            alert("Il nome della categoria è obbligatorio.");
+            return;
+        }
+        
+        const newCategory = {
+            ...formCat,
+            family_group: familyGroup
+        };
+        
+        const { error } = await supabase.from('categorie').insert(newCategory);
+        if (error) {
+            console.error("Errore nell'inserimento della categoria:", error);
+            alert("Errore nell'inserimento della categoria: " + error.message);
+            return;
+        }
+        resetFormCat();
+        await fetchCategorie(familyGroup);
+        setShowAddCatForm(false);
+    }
+
+    const apriModalModifica = (type, data) => {
+        setModalType(type);
+        setModalData(data);
+        setModalVisible(true);
+    };
+
+    const salvaModifiche = async (updatedData) => {
+        if (modalType === 'prodotto') {
+            const productData = {
+                ...updatedData,
+                prezzo: updatedData.prezzo === '' ? null : parseFloat(updatedData.prezzo),
+                prezzo_esselunga: updatedData.prezzo_esselunga === '' ? null : parseFloat(updatedData.prezzo_esselunga),
+                prezzo_mercato: updatedData.prezzo_mercato === '' ? null : parseFloat(updatedData.prezzo_mercato),
+                prezzo_carrefour: updatedData.prezzo_carrefour === '' ? null : parseFloat(updatedData.prezzo_carrefour),
+                prezzo_penny: updatedData.prezzo_penny === '' ? null : parseFloat(updatedData.prezzo_penny),
+                prezzo_coop: updatedData.prezzo_coop === '' ? null : parseFloat(updatedData.prezzo_coop),
+            };
+            const { error } = await supabase.from('prodotti').update(productData).eq('id', modalData.id);
+            if (error) {
+                console.error("Errore nell'aggiornamento del prodotto:", error);
+                alert("Errore nell'aggiornamento del prodotto: " + error.message);
+                return;
+            }
+            await fetchProdotti(familyGroup);
+        } else if (modalType === 'categoria') {
+            const { error } = await supabase.from('categorie').update(updatedData).eq('id', modalData.id);
+            if (error) {
+                console.error("Errore nell'aggiornamento della categoria:", error);
+                alert("Errore nell'aggiornamento della categoria: " + error.message);
+                return;
+            }
+            await fetchCategorie(familyGroup);
+        }
+        chiudiModal();
+    };
+
+    const chiudiModal = () => {
+        setModalVisible(false);
+        setModalType(null);
+        setModalData(null);
+    };
+
+    async function cancellaProdotto(id) {
+        const { error } = await supabase.from('prodotti').delete().eq('id', id);
+        if (error) {
+            console.error("Errore nella cancellazione del prodotto:", error);
+            alert("Errore nella cancellazione del prodotto: " + error.message);
+            return;
+        }
+        await fetchProdotti(familyGroup);
+    }
+
+    async function cancellaCategoria(id) {
+        const { data: prodottiAssociati, error: prodottiError } = await supabase
+            .from('prodotti')
+            .select('id')
+            .eq('categoria_id', id);
+
+        if (prodottiError) {
+            console.error("Errore nella ricerca dei prodotti associati:", prodottiError);
+            alert("Impossibile cancellare la categoria: " + prodottiError.message);
+            return;
+        }
+
+        if (prodottiAssociati.length > 0) {
+            alert(`Impossibile cancellare la categoria. Ci sono ${prodottiAssociati.length} prodotti associati. Rimuovi prima i prodotti.`);
+            return;
+        }
+
+        const { error } = await supabase.from('categorie').delete().eq('id', id);
+        if (error) {
+            console.error("Errore nella cancellazione della categoria:", error);
+            alert("Errore nella cancellazione della categoria: " + error.message);
+            return;
+        }
+        await fetchCategorie(familyGroup);
+    }
+    
+    // Resto del codice...
+    const prodottiFiltrati = queryProdotto
+    ? prodotti.filter((p) => p.articolo.toLowerCase().includes(queryProdotto.toLowerCase()) || (p.descrizione_articolo && p.descrizione_articolo.toLowerCase().includes(queryProdotto.toLowerCase())) || (p.categorie && p.categorie.name.toLowerCase().includes(queryProdotto.toLowerCase())))
+    : prodotti;
+
+    const categorieFiltrate = queryCategoria
+        ? categorie.filter((c) => c.name.toLowerCase().includes(queryCategoria.toLowerCase()))
+        : categorie;
+
+    const visualizzaProdotti = (categoryId) => {
+        const filtered = prodotti.filter(p => p.categoria_id === categoryId);
+        setProdottiFiltratiCategoria(filtered);
+    };
+
+    const tornaACategorie = () => {
+        setProdottiFiltratiCategoria([]);
+        setQueryCategoria('');
+    };
+
+    const resetFormProd = () => {
+        setFormProd({
+            articolo: '',
+            descrizione_articolo: '',
+            prezzo: '',
+            categoria_id: '',
+            prezzo_esselunga: '',
+            prezzo_mercato: '',
+            prezzo_carrefour: '',
+            prezzo_penny: '',
+            prezzo_coop: '',
+            preferito: false,
+            unita_misura: ''
+        });
+    };
+
+    const resetFormCat = () => {
+        setFormCat({
+            name: '',
+            corsia_esselunga: '',
+            corsia_mercato: '',
+            corsia_carrefour: '',
+            corsia_penny: '',
+            corsia_coop: ''
+        });
+    };
+
+    if (loading) {
+        return <div className="loading">Caricamento...</div>;
+    }
+
+    return (
+        <div className="container">
+            <header className="header">
+                <h1>📦 Archivio Prodotti</h1>
+                <p>Gestisci i tuoi articoli e le loro categorie.</p>
+                <button className="btn-main-menu" onClick={() => navigate('/main-menu')}>Menu</button>
+            </header>
+
+            <div className="tabs">
+                <button className={`tab-button ${sezioneAttiva === 'prodotti' ? 'active' : ''}`} onClick={() => { setSezioneAttiva('prodotti'); setQueryProdotto(''); setShowAddProdForm(false); setShowExistingCategories(false); }}>🛒 Prodotti</button>
+                <button className={`tab-button ${sezioneAttiva === 'categorie' ? 'active' : ''}`} onClick={() => { setSezioneAttiva('categorie'); tornaACategorie(); setShowAddCatForm(false); setShowExistingCategories(false); }}>🗂️ Categorie</button>
+            </div>
+
+            {sezioneAttiva === 'prodotti' && (
+                <section className="section">
+                    <div className="input-group">
+                        <label>🔍 Cerca prodotto:</label>
+                        <input value={queryProdotto} onChange={(e) => setQueryProdotto(e.target.value)} placeholder="Es. Latte Intero" className="search-input" />
+                    </div>
+                    <button className="btn-add" onClick={() => setShowAddProdForm(!showAddProdForm)}>
+                        {showAddProdForm ? 'Annulla' : '➕ Aggiungi Nuovo Prodotto'}
+                    </button>
+
+                    {showAddProdForm && (
+                        <div className="add-form">
+                            <p className="add-title">➕ Aggiungi un nuovo prodotto</p>
+                            <div className="form-group">
+                                <label>Articolo: <span className="obbligatorio">(Obbligatorio)</span></label>
+                                <input value={formProd.articolo} onChange={(e) => setFormProd({ ...formProd, articolo: e.target.value })} placeholder="Articolo" />
+                            </div>
+                            <div className="form-group">
+                                <label>Descrizione Articolo:</label>
+                                <input value={formProd.descrizione_articolo} onChange={(e) => setFormProd({ ...formProd, descrizione_articolo: e.target.value })} placeholder="Descrizione" />
+                            </div>
+                            <div className="form-group">
+                                <label>Prezzo Generale (€):</label>
+                                <input type="number" value={formProd.prezzo} onChange={(e) => setFormProd({ ...formProd, prezzo: e.target.value })} placeholder="0.00" />
+                            </div>
+                            <div className="form-group">
+                                <label>Categoria: <span className="obbligatorio">(Obbligatorio)</span></label>
+                                <select value={formProd.categoria_id} onChange={(e) => setFormProd({ ...formProd, categoria_id: e.target.value })}>
+                                    <option value="">Seleziona categoria</option>
+                                    {categorie.map((cat) => (
+                                        <option key={cat.id} value={cat.id}>{cat.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="form-group">
+                                <label>Unità di Misura:</label>
+                                <input value={formProd.unita_misura} onChange={(e) => setFormProd({ ...formProd, unita_misura: e.target.value })} placeholder="Es. kg, l, pz" />
+                            </div>
+                            <div className="form-group checkbox-group">
+                                <input type="checkbox" checked={formProd.preferito} onChange={(e) => setFormProd({ ...formProd, preferito: e.target.checked })} id="preferito" />
+                                <label htmlFor="preferito">Preferito</label>
+                            </div>
+                            <div className="form-group-column">
+                                <h4>Prezzi Supermercati</h4>
+                                <div className="input-with-label">
+                                    <label>Esselunga (€):</label>
+                                    <input type="number" value={formProd.prezzo_esselunga} onChange={(e) => setFormProd({ ...formProd, prezzo_esselunga: e.target.value })} placeholder="0.00" />
+                                </div>
+                                <div className="input-with-label">
+                                    <label>Mercato (€):</label>
+                                    <input type="number" value={formProd.prezzo_mercato} onChange={(e) => setFormProd({ ...formProd, prezzo_mercato: e.target.value })} placeholder="0.00" />
+                                </div>
+                                <div className="input-with-label">
+                                    <label>Carrefour (€):</label>
+                                    <input type="number" value={formProd.prezzo_carrefour} onChange={(e) => setFormProd({ ...formProd, prezzo_carrefour: e.target.value })} placeholder="0.00" />
+                                </div>
+                                <div className="input-with-label">
+                                    <label>Penny (€):</label>
+                                    <input type="number" value={formProd.prezzo_penny} onChange={(e) => setFormProd({ ...formProd, prezzo_penny: e.target.value })} placeholder="0.00" />
+                                </div>
+                                <div className="input-with-label">
+                                    <label>Coop (€):</label>
+                                    <input type="number" value={formProd.prezzo_coop} onChange={(e) => setFormProd({ ...formProd, prezzo_coop: e.target.value })} placeholder="0.00" />
+                                </div>
+                            </div>
+                            <button className="btn-add" onClick={aggiungiProdotto}>➕ Aggiungi Prodotto</button>
+                        </div>
+                    )}
+                    <ul className="list">
+                        {prodottiFiltrati.map((prod) => (
+                            <li key={prod.id} className="list-item">
+                                <div className="item-main">
+                                    <strong>{prod.articolo}</strong>
+                                    <small>{prod.descrizione_articolo || 'Nessuna descrizione'}</small>
+                                </div>
+                                <div className="item-actions">
+                                    <button className="btn-edit" onClick={(e) => { e.stopPropagation(); apriModalModifica('prodotto', prod); }}>✏️</button>
+                                    <button className="btn-delete" onClick={(e) => { e.stopPropagation(); cancellaProdotto(prod.id); }}>🗑️</button>
+                                </div>
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
+            {sezioneAttiva === 'categorie' && (
+                <section className="section">
+                    <div className="input-group">
+                        <label>🔍 Cerca categoria:</label>
+                        <input value={queryCategoria} onChange={(e) => setQueryCategoria(e.target.value)} placeholder="Es. Latticini" className="search-input" />
+                    </div>
+                    
+                    {prodottiFiltratiCategoria.length > 0 ? (
+                        <>
+                            <button className="btn-back" onClick={tornaACategorie}>← Torna alle Categorie</button>
+                            <ul className="list">
+                                {prodottiFiltratiCategoria.map((prod) => (
+                                    <li key={prod.id} className="list-item">
+                                        <div className="item-main">
+                                            <strong>{prod.articolo}</strong>
+                                            <small>{prod.descrizione_articolo || 'Nessuna descrizione'}</small>
+                                        </div>
+                                        <div className="item-actions">
+                                            <button className="btn-edit" onClick={() => apriModalModifica('prodotto', prod)}>✏️</button>
+                                            <button className="btn-delete" onClick={() => cancellaProdotto(prod.id)}>🗑️</button>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    ) : (
+                        <>
+                            <button className="btn-add" onClick={() => {
+                                setShowAddCatForm(!showAddCatForm);
+                                setShowExistingCategories(false);
+                            }}>
+                                {showAddCatForm ? 'Annulla' : '➕ Aggiungi Nuova Categoria'}
+                            </button>
+                            
+                            <button className="btn-secondary" onClick={() => setShowExistingCategories(!showExistingCategories)}>
+                                {showExistingCategories ? 'Nascondi Categorie Esistenti' : 'Mostra Categorie Esistenti'}
+                            </button>
+
+                            {showAddCatForm && (
+                                <div className="add-form">
+                                    <p className="add-title">➕ Aggiungi una nuova categoria</p>
+                                    <div className="form-group">
+                                        <label>Nome: <span className="obbligatorio">(Obbligatorio)</span></label>
+                                        <input value={formCat.name} onChange={(e) => setFormCat({ ...formCat, name: e.target.value })} placeholder="Nome Categoria" />
+                                    </div>
+                                    <div className="form-group-column">
+                                        <h4>Corsie Supermercati</h4>
+                                        <div className="input-with-label">
+                                            <label>Esselunga:</label>
+                                            <input value={formCat.corsia_esselunga} onChange={(e) => setFormCat({ ...formCat, corsia_esselunga: e.target.value })} placeholder="Aisle" className="small-input" />
+                                        </div>
+                                        <div className="input-with-label">
+                                            <label>Mercato:</label>
+                                            <input value={formCat.corsia_mercato} onChange={(e) => setFormCat({ ...formCat, corsia_mercato: e.target.value })} placeholder="Aisle" className="small-input" />
+                                        </div>
+                                        <div className="input-with-label">
+                                            <label>Carrefour:</label>
+                                            <input value={formCat.corsia_carrefour} onChange={(e) => setFormCat({ ...formCat, corsia_carrefour: e.target.value })} placeholder="Aisle" className="small-input" />
+                                        </div>
+                                        <div className="input-with-label">
+                                            <label>Penny:</label>
+                                            <input value={formCat.corsia_penny} onChange={(e) => setFormCat({ ...formCat, corsia_penny: e.target.value })} placeholder="Aisle" className="small-input" />
+                                        </div>
+                                        <div className="input-with-label">
+                                            <label>Coop:</label>
+                                            <input value={formCat.corsia_coop} onChange={(e) => setFormCat({ ...formCat, corsia_coop: e.target.value })} placeholder="Aisle" className="small-input" />
+                                        </div>
+                                    </div>
+                                    <button className="btn-add" onClick={aggiungiCategoria}>➕ Aggiungi Categoria</button>
+                                </div>
+                            )}
+
+                            {showExistingCategories && (
+                                <ul className="list">
+                                    {categorieFiltrate.map((cat) => (
+                                        <li key={cat.id} className="list-item">
+                                            <div className="item-main">
+                                                <strong>{cat.name}</strong>
+                                            </div>
+                                            <div className="item-actions">
+                                                <div className="action-group">
+                                                    <button className="btn-action" onClick={() => apriModalModifica('categoria', cat)}>✏️</button>
+                                                    <span className="action-note">Modifica</span>
+                                                </div>
+                                                <div className="action-group">
+                                                    <button className="btn-action" onClick={() => cancellaCategoria(cat.id)}>🗑️</button>
+                                                    <span className="action-note">Cancella</span>
+                                                </div>
+                                                <div className="action-group">
+                                                    <button className="btn-action" onClick={() => visualizzaProdotti(cat.id)}>🔍</button>
+                                                    <span className="action-note">Visualizza Prodotti</span>
+                                                </div>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </>
+                    )}
+                </section>
+            )}
+
+            {modalVisible && (
+                <Modal
+                    type={modalType}
+                    data={modalData}
+                    categories={categorie}
+                    onClose={chiudiModal}
+                    onSave={salvaModifiche}
+                />
+            )}
+        </div>
+    );
+}
