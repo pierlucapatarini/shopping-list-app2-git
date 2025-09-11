@@ -56,6 +56,7 @@ function FamilyChat() {
                     setMessages(messagesData || []);
                 }
 
+                // Canale di presenza per lo stato online
                 presenceChannel = supabase
                     .channel('family-group-presence')
                     .on('presence', { event: 'sync' }, () => {
@@ -77,6 +78,7 @@ function FamilyChat() {
                         }
                     });
 
+                // Canale di chat per i messaggi
                 chatChannel = supabase
                     .channel('messages-channel')
                     .on(
@@ -88,14 +90,18 @@ function FamilyChat() {
                             filter: `family_group=eq.${userFamilyGroup}`
                         },
                         payload => {
+                            // Aggiorna lo stato dei messaggi in modo funzionale
                             setMessages(prevMessages => {
-                                const messageExists = prevMessages.some(msg => msg.id === payload.new.id);
-                                if (messageExists) {
+                                // Evita messaggi duplicati se il tuo listener si attiva più volte
+                                if (prevMessages.some(msg => msg.id === payload.new.id)) {
                                     return prevMessages;
                                 }
+
+                                // Usa l'username se è disponibile
+                                const senderUsername = payload.new.profiles?.username || 
+                                                       (profilesData?.find(m => m.id === payload.new.sender_id)?.username) || 
+                                                       'Sconosciuto';
                                 
-                                // Aggiorna il messaggio con il nome utente del mittente
-                                const senderUsername = familyMembers.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
                                 const newMsg = {
                                     ...payload.new,
                                     profiles: {
@@ -117,7 +123,7 @@ function FamilyChat() {
             if (chatChannel) supabase.removeChannel(chatChannel);
             if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
-    }, [familyMembers]); // Aggiungi familyMembers come dipendenza per aggiornare il listener
+    }, []); // Rimosso 'familyMembers' come dipendenza
 
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -200,10 +206,8 @@ function FamilyChat() {
         if (error) {
             console.error('Errore nell\'invio del messaggio:', error);
         } else {
-            setMessages(prevMessages => {
-                const messageExists = prevMessages.some(msg => msg.id === data.id);
-                return messageExists ? prevMessages : [...prevMessages, data];
-            });
+            // L'aggiornamento dello stato verrà gestito dal listener di Supabase.
+            // Non è necessario fare un ulteriore setMessages qui.
             setNewMessage('');
             setSelectedFile(null);
         }
@@ -392,7 +396,6 @@ function FamilyChat() {
                             📞 Diretta
                         </button>
                     </div>
-                    {/* Pulsante per la videochiamata di gruppo rimosso o modificato */}
                     <button onClick={() => alert('La videochiamata di gruppo non è ancora implementata con una soluzione gratuita.')} 
                         style={{ 
                             padding: '8px 15px', borderRadius: '20px', backgroundColor: '#87CEEB',
