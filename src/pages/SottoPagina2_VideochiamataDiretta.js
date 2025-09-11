@@ -10,7 +10,7 @@ const STUN_SERVERS = [
 function DirectVideoChat() {
     const localVideoRef = useRef();
     const remoteVideoRef = useRef();
-    const pc = useRef(null); // Inizializza a null
+    const pc = useRef(null);
     const channel = useRef(null);
     const { state } = useLocation();
     const navigate = useNavigate();
@@ -18,6 +18,7 @@ function DirectVideoChat() {
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const localStream = useRef(null);
+    const iceCandidatesQueue = useRef([]);
 
     const { familyGroup, user, remoteUserId } = state || {};
 
@@ -27,14 +28,13 @@ function DirectVideoChat() {
             return;
         }
 
-        pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS }); // Crea la connessione qui
+        pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
         
         const callChannelName = [user.id, remoteUserId].sort().join('-');
         channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
 
         const setupWebRTC = async () => {
             try {
-                // 1. Ottieni il flusso video e audio locale
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 localVideoRef.current.srcObject = stream;
                 localStream.current = stream;
@@ -43,7 +43,6 @@ function DirectVideoChat() {
                      stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
                 }
 
-                // 2. Configura il signaling con Supabase
                 channel.current.on('broadcast', { event: 'webrtc_signal' }, async ({ payload }) => {
                     if (payload.senderId !== user.id) {
                         try {
@@ -61,11 +60,26 @@ function DirectVideoChat() {
                                         answer: pc.current.localDescription
                                     }
                                 });
+                                // Aggiungi tutti i candidati in coda dopo aver impostato la descrizione remota
+                                iceCandidatesQueue.current.forEach(candidate => {
+                                    pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+                                });
+                                iceCandidatesQueue.current = []; // Svuota la coda
                             } else if (payload.type === 'answer') {
                                 setStatus('Risposta ricevuta, connessione stabilita.');
                                 await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                                // Aggiungi tutti i candidati in coda
+                                iceCandidatesQueue.current.forEach(candidate => {
+                                    pc.current.addIceCandidate(new RTCIceCandidate(candidate));
+                                });
+                                iceCandidatesQueue.current = []; // Svuota la coda
                             } else if (payload.type === 'ice-candidate') {
-                                await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                                // Se la descrizione remota non è ancora impostata, metti in coda il candidato
+                                if (pc.current.remoteDescription) {
+                                    await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                                } else {
+                                    iceCandidatesQueue.current.push(payload.candidate);
+                                }
                             }
                         } catch (e) {
                             console.error('Errore nella gestione del segnale WebRTC:', e);
@@ -73,10 +87,19 @@ function DirectVideoChat() {
                     }
                 });
 
-                await channel.current.subscribe();
-                setStatus('Pronto per la chiamata. In attesa dell\'altro utente...');
-
-                // 3. Gestione della connessione peer
+                await channel.current.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        setStatus('Pronto per la chiamata. In attesa dell\'altro utente...');
+                        // Avvia la chiamata solo se sei il "chiamante"
+                        const sortedUserIds = [user.id, remoteUserId].sort();
+                        if (sortedUserIds[0] === user.id) {
+                            setTimeout(() => {
+                                initiateCall();
+                            }, 1000);
+                        }
+                    }
+                });
+                
                 pc.current.onicecandidate = (event) => {
                     if (event.candidate) {
                         channel.current.send({
@@ -95,11 +118,6 @@ function DirectVideoChat() {
                     remoteVideoRef.current.srcObject = event.streams[0];
                     setStatus('Connessione riuscita. Videochiamata in corso.');
                 };
-
-                // Avvia la chiamata automaticamente dopo un piccolo ritardo per l'altra parte
-                setTimeout(() => {
-                    initiateCall();
-                }, 1000);
 
             } catch (error) {
                 console.error('Errore nell\'ottenere lo stream o nel setup WebRTC:', error);

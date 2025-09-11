@@ -88,18 +88,21 @@ function FamilyChat() {
                             filter: `family_group=eq.${userFamilyGroup}`
                         },
                         payload => {
-                            // Prepara il nuovo messaggio usando i dati del payload
-                            // Aggiungi il campo 'profiles' per compatibilità con il rendering
-                            const newMsg = {
-                                ...payload.new,
-                                profiles: {
-                                    username: familyMembers.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto'
-                                }
-                            };
-                            
                             setMessages(prevMessages => {
-                                const messageExists = prevMessages.some(msg => msg.id === newMsg.id);
-                                return messageExists ? prevMessages : [...prevMessages, newMsg];
+                                const messageExists = prevMessages.some(msg => msg.id === payload.new.id);
+                                if (messageExists) {
+                                    return prevMessages;
+                                }
+                                
+                                // Aggiorna il messaggio con il nome utente del mittente
+                                const senderUsername = familyMembers.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
+                                const newMsg = {
+                                    ...payload.new,
+                                    profiles: {
+                                        username: senderUsername
+                                    }
+                                };
+                                return [...prevMessages, newMsg];
                             });
                         }
                     )
@@ -114,7 +117,7 @@ function FamilyChat() {
             if (chatChannel) supabase.removeChannel(chatChannel);
             if (presenceChannel) supabase.removeChannel(presenceChannel);
         };
-    }, []);
+    }, [familyMembers]); // Aggiungi familyMembers come dipendenza per aggiornare il listener
 
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -389,7 +392,8 @@ function FamilyChat() {
                             📞 Diretta
                         </button>
                     </div>
-                    <button onClick={() => navigate('/video-chat-gruppo', { state: { familyGroup } })} 
+                    {/* Pulsante per la videochiamata di gruppo rimosso o modificato */}
+                    <button onClick={() => alert('La videochiamata di gruppo non è ancora implementata con una soluzione gratuita.')} 
                         style={{ 
                             padding: '8px 15px', borderRadius: '20px', backgroundColor: '#87CEEB',
                             color: 'white', border: 'none', cursor: 'pointer', width: '100%',
