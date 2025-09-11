@@ -87,20 +87,26 @@ function FamilyChat() {
                             table: 'messages',
                             filter: `family_group=eq.${userFamilyGroup}`
                         },
-                        payload => {
-                            // Prepara il nuovo messaggio usando i dati del payload
-                            // Aggiungi il campo 'profiles' per compatibilità con il rendering
-                            const newMsg = {
-                                ...payload.new,
-                                profiles: {
-                                    username: familyMembers.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto'
+                        async payload => {
+                            setTimeout(async () => {
+                                try {
+                                    const { data: newMessageData, error: fetchError } = await supabase
+                                        .from('messages')
+                                        .select('*, profiles(username)')
+                                        .eq('id', payload.new.id)
+                                        .single();
+                                    if (fetchError) return;
+                                    
+                                    if (newMessageData) {
+                                        setMessages(prevMessages => {
+                                            const messageExists = prevMessages.some(msg => msg.id === newMessageData.id);
+                                            return messageExists ? prevMessages : [...prevMessages, newMessageData];
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.error('Errore nel processare il nuovo messaggio:', error);
                                 }
-                            };
-                            
-                            setMessages(prevMessages => {
-                                const messageExists = prevMessages.some(msg => msg.id === newMsg.id);
-                                return messageExists ? prevMessages : [...prevMessages, newMsg];
-                            });
+                            }, 100);
                         }
                     )
                     .subscribe();
