@@ -236,7 +236,7 @@ function FamilyChat() {
                 file_url: fileUrl,
                 file_name: fileName,
                 file_type: fileType,
-            
+                tempId: tempId
             });
 
         if (error) {
