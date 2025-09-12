@@ -10,64 +10,53 @@ function FamilyChat() {
     const [familyGroup, setFamilyGroup] = useState(null);
     const [selectedFile, setSelectedFile] = useState(null);
     const [uploadingFile, setUploadingFile] = useState(false);
-    const [realtimeStatus, setRealtimeStatus] = useState('DISCONNECTED');
+    const chatContainerRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const navigate = useNavigate();
+
     const [openFileOptionsId, setOpenFileOptionsId] = useState(null);
     const [familyMembers, setFamilyMembers] = useState([]);
     const [onlineMembers, setOnlineMembers] = useState([]);
     const [selectedDirectCallUser, setSelectedDirectCallUser] = useState('');
 
-    const messagesEndRef = useRef(null);
-    const fileInputRef = useRef(null);
-    const navigate = useNavigate();
-
-    // Scorri in fondo alla chat
-    const scrollToBottom = () => {
-        if (messagesEndRef.current) {
-            messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-        }
-    };
-
-    // Inizializzazione: recupera i dati, imposta la chat in tempo reale e la presenza
     useEffect(() => {
         let chatChannel = null;
         let presenceChannel = null;
 
-        const initChatAndPresence = async () => {
+        const fetchInitialDataAndSubscribe = async () => {
             setLoading(true);
-            try {
-                // Ottieni l'utente corrente
-                const { data: { user }, error: userError } = await supabase.auth.getUser();
-                if (userError || !user) {
-                    navigate('/login'); // Reindirizza al login se non c'è l'utente
-                    return;
-                }
-                setUser(user);
 
-                const fg = user.user_metadata.family_group;
-                if (!fg) return;
-                setFamilyGroup(fg);
+            const { data: { user } } = await supabase.auth.getUser();
+            setUser(user);
 
-                // Recupera i membri iniziali della famiglia
+            if (user && user.user_metadata && user.user_metadata.family_group) {
+                const userFamilyGroup = user.user_metadata.family_group;
+                setFamilyGroup(userFamilyGroup);
+
                 const { data: profilesData, error: profilesError } = await supabase
                     .from('profiles')
                     .select('id, username')
-                    .eq('family_group', fg);
-                if (profilesError) console.error('Errore nel recupero dei profili:', profilesError);
-                setFamilyMembers(profilesData || []);
+                    .eq('family_group', userFamilyGroup);
 
-                // Recupera i messaggi iniziali con il profilo del mittente
-                const { data: messagesData, error: fetchError } = await supabase
+                if (profilesError) {
+                    console.error('Errore nel recupero dei profili:', profilesError);
+                } else {
+                    setFamilyMembers(profilesData || []);
+                }
+                
+                const { data: messagesData, error: messagesError } = await supabase
                     .from('messages')
-                    .select('*, profiles:sender_id(username)')
-                    .eq('family_group', fg)
+                    .select('*, profiles(username)')
+                    .eq('family_group', userFamilyGroup)
                     .order('created_at', { ascending: true });
-                if (fetchError) console.error(fetchError);
-                setMessages(messagesData || []);
-                scrollToBottom();
 
-                // ----------------------------------------------------
-                // Canale di presenza Supabase (da Pagina2_accesori.js)
-                // ----------------------------------------------------
+                if (messagesError) {
+                    console.error('Errore nel recupero dei messaggi:', messagesError);
+                } else {
+                    setMessages(messagesData || []);
+                }
+
+                // Canale di presenza per lo stato online
                 presenceChannel = supabase
                     .channel('family-group-presence')
                     .on('presence', { event: 'sync' }, () => {
@@ -84,52 +73,49 @@ function FamilyChat() {
                         setOnlineMembers(prev => prev.filter(id => !leftIds.includes(id)));
                     })
                     .subscribe(async (status) => {
-                        if (status === 'SUBSCRIBED' && user) {
-                            await presenceChannel.track({ id: user.id, username: user.user_metadata.username });
+                        if (status === 'SUBSCRIBED') {
+                            await presenceChannel.track({ id: user.id });
                         }
                     });
 
-                // ----------------------------------------------------
-                // Canale di chat in tempo reale Supabase (da Pagina2_logica.js)
-                // ----------------------------------------------------
+                // Canale di chat per i messaggi
                 chatChannel = supabase
-                    .channel(`messages-${fg}`)
+                    .channel('messages-channel')
                     .on(
                         'postgres_changes',
                         {
                             event: 'INSERT',
                             schema: 'public',
                             table: 'messages',
-                            filter: `family_group=eq.${fg}`,
+                            filter: `family_group=eq.${userFamilyGroup}`
                         },
-                        async (payload) => {
-                            if (!payload.new) return;
-                            
-                            // EVITA DUPLICATI: ignora il messaggio se è stato inviato da questo utente
-                            if (payload.new.sender_id === user.id) return;
-                            
+                        payload => {
+                            // Cerca il mittente nell'array dei profili già caricato
                             const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
                             
-                            const newMsg = {
-                                ...payload.new,
-                                profiles: { username: senderUsername },
-                            };
-                            setMessages((prev) => [...prev, newMsg]);
-                            scrollToBottom();
+                            setMessages(prevMessages => {
+                                // Evita di aggiungere lo stesso messaggio più volte
+                                const messageExists = prevMessages.some(msg => msg.id === payload.new.id);
+                                if (messageExists) {
+                                    return prevMessages;
+                                }
+
+                                const newMsg = {
+                                    ...payload.new,
+                                    profiles: {
+                                        username: senderUsername
+                                    }
+                                };
+                                return [...prevMessages, newMsg];
+                            });
                         }
                     )
-                    .subscribe((status) => {
-                        setRealtimeStatus(status);
-                    });
-
-            } catch (error) {
-                console.error('Errore durante l\'inizializzazione della chat:', error);
-            } finally {
-                setLoading(false);
+                    .subscribe();
             }
+            setLoading(false);
         };
 
-        initChatAndPresence();
+        fetchInitialDataAndSubscribe();
 
         return () => {
             if (chatChannel) supabase.removeChannel(chatChannel);
@@ -137,12 +123,12 @@ function FamilyChat() {
         };
     }, []);
 
-    // Effetto per la gestione dello scorrimento automatico con i nuovi messaggi
     useEffect(() => {
-        scrollToBottom();
+        if (chatContainerRef.current) {
+            chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
+        }
     }, [messages]);
 
-    // Effetto per la chiusura delle opzioni file al clic del documento
     useEffect(() => {
         const handleDocClick = () => setOpenFileOptionsId(null);
         document.addEventListener('click', handleDocClick);
@@ -165,25 +151,31 @@ function FamilyChat() {
 
     const handleSendMessage = async (e) => {
         e.preventDefault();
-        if ((!newMessage.trim() && !selectedFile) || !user || !familyGroup || uploadingFile) return;
+        if ((!newMessage.trim() && !selectedFile) || !familyGroup || !user || uploadingFile) return;
 
         let fileUrl = null;
         let fileName = selectedFile?.name || null;
         let fileType = selectedFile?.type || null;
-
-        // Carica il file se selezionato
+        
+        // Se c'è un file, caricalo prima di inviare il messaggio
         if (selectedFile) {
             setUploadingFile(true);
             try {
                 const fileExt = fileName.split('.').pop();
                 const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                
                 const { error: uploadError } = await supabase.storage
-                    .from('chat-files')
+                    .from('chat-files') 
                     .upload(`${familyGroup}/${uniqueFileName}`, selectedFile);
-                if (uploadError) throw new Error('Errore nel caricamento del file.');
+
+                if (uploadError) {
+                    throw new Error('Errore nel caricamento del file.');
+                }
+
                 const { data: { publicUrl } } = supabase.storage
                     .from('chat-files')
                     .getPublicUrl(`${familyGroup}/${uniqueFileName}`);
+
                 fileUrl = publicUrl;
             } catch (error) {
                 console.error(error.message);
@@ -195,47 +187,30 @@ function FamilyChat() {
             }
         }
         
-        // Prepara i dati del messaggio
-        const messageData = {
-            content: newMessage || (fileName ? `📎 ${fileName}` : ''),
-            family_group: familyGroup,
-            sender_id: user.id,
-            file_url: fileUrl,
-            file_name: fileName,
-            file_type: fileType,
-        };
-        
-        // Aggiungi il messaggio allo stato locale all'istante (fallback)
-        // Questo fornisce una migliore esperienza utente
-        setMessages((prev) => [
-            ...prev,
-            {
-                ...messageData,
-                id: Math.random(), // ID temporaneo per il rendering locale
-                created_at: new Date().toISOString(),
-                profiles: { username: user.user_metadata.username || 'Tu' },
-            },
-        ]);
+        // Invia il messaggio al database. Il broadcast di Supabase si occuperà di aggiungerlo al client.
+        const { error } = await supabase
+            .from('messages')
+            .insert({
+                content: newMessage || (fileName ? `📎 ${fileName}` : ''),
+                family_group: familyGroup,
+                sender_id: user.id,
+                file_url: fileUrl,
+                file_name: fileName,
+                file_type: fileType,
+            });
 
         setNewMessage('');
         setSelectedFile(null);
-        scrollToBottom();
-
-        // Inserisci nel database
-        const { error } = await supabase
-            .from('messages')
-            .insert(messageData);
-
+        
         if (error) {
             console.error('Errore nell\'invio del messaggio:', error);
-            // Opzionale: gestisci l'errore annullando la visualizzazione del messaggio locale
         }
     };
 
     const renderFilePreview = () => {
         if (!selectedFile) return null;
         const isImage = selectedFile.type.startsWith('image/');
-
+        
         return (
             <div style={{
                 position: 'absolute', bottom: '100%', left: '0', right: '0', backgroundColor: 'white',
@@ -243,8 +218,8 @@ function FamilyChat() {
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px', maxWidth: '1200px', margin: '0 auto' }}>
                     {isImage ? (
-                        <img src={URL.createObjectURL(selectedFile)} alt="Anteprima"
-                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #ddd' }}
+                        <img src={URL.createObjectURL(selectedFile)} alt="Preview" 
+                            style={{ width: '60px', height: '60px', objectFit: 'cover', borderRadius: '8px', border: '2px solid #ddd' }} 
                         />
                     ) : (
                         <div style={{
@@ -268,7 +243,7 @@ function FamilyChat() {
             </div>
         );
     };
-
+    
     const handleClickFile = (e, msgId) => {
         e.stopPropagation();
         setOpenFileOptionsId(prev => prev === msgId ? null : msgId);
@@ -291,18 +266,18 @@ function FamilyChat() {
     const renderMessageContent = (msg) => {
         const hasFile = msg.file_url && msg.file_name;
         const isImage = hasFile && msg.file_type?.startsWith('image/');
-
+        
         return (
             <div>
-                <div style={{
+                <div style={{ 
                     fontWeight: 'bold', fontSize: '0.85em',
                     color: isMyMessage(msg.sender_id) ? '#0a5f26' : '#0366d6', marginBottom: '4px'
                 }}>
                     {msg.profiles?.username || 'Sconosciuto'}
                 </div>
-
+                
                 {hasFile && (
-                    <div style={{ marginBottom: msg.content && msg.content !== `📎 ${msg.file_name}` ? '8px' : '0', cursor: 'pointer' }}
+                    <div style={{ marginBottom: msg.content !== `📎 ${msg.file_name}` ? '8px' : '0', cursor: 'pointer' }}
                         onClick={(e) => handleClickFile(e, msg.id)}>
                         {isImage ? (
                             <img src={msg.file_url} alt={msg.file_name}
@@ -334,7 +309,7 @@ function FamilyChat() {
                         )}
                     </div>
                 )}
-
+                
                 {msg.content && msg.content !== `📎 ${msg.file_name}` && (
                     <div style={{ fontSize: '1em', lineHeight: '1.4', margin: 0 }}>{msg.content}</div>
                 )}
@@ -360,21 +335,23 @@ function FamilyChat() {
 
     return (
         <div style={{ height: '100vh', backgroundColor: '#e5ddd5', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column',
-            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-opacity='0.03'%3E%3Cpolygon fill='%23000' points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")`
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-opacity='0.03'%3E%3Cpolygon fill='%23000' points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")` 
         }}>
-            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px',
                 backgroundColor: '#075E54', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 1000, flexWrap: 'wrap'
             }}>
                 <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', color: 'white' }}>
-                    <h1 style={{ fontSize: '1.6em', margin: 0 }}>💬 Patarini's Social Chat 15.0.1</h1>
-                    <div style={{ fontSize: '0.8em', marginBottom: '5px' }}>Stato in tempo reale: {realtimeStatus}</div>
+                    <h1 style={{ fontSize: '1.6em', margin: 0 }}>💬 Patarini's Social Chat</h1>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
                         {familyMembers.map((member) => {
                             const isOnline = onlineMembers.includes(member.id);
-                            let memberColor = '#007bff';
-                            if (member.id === user?.id) memberColor = '#25D366';
-                            else if (isOnline) memberColor = '#FFC107';
+                            
+                            let memberColor = '#007bff'; // Azzurro per utenti offline
+                            if (member.id === user?.id) {
+                                memberColor = '#25D366'; // Verde per l'utente loggato
+                            } else if (isOnline) {
+                                memberColor = '#FFC107'; // Giallo per altri utenti online
+                            }
 
                             return (
                                 <div key={member.id} style={{
@@ -386,7 +363,8 @@ function FamilyChat() {
                                     {member.username}
                                     <span style={{
                                         width: '8px', height: '8px', borderRadius: '50%',
-                                        backgroundColor: 'white', border: '1px solid transparent', opacity: 1
+                                        backgroundColor: 'white', border: '1px solid transparent',
+                                        opacity: 1
                                     }}></span>
                                 </div>
                             );
@@ -433,7 +411,7 @@ function FamilyChat() {
                 </div>
             </div>
 
-            <div style={{ 
+            <div ref={chatContainerRef} style={{ 
                 flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column',
                 gap: '12px', paddingBottom: '100px'
             }}>
@@ -500,7 +478,6 @@ function FamilyChat() {
                         ))
                     )
                 )}
-                <div ref={messagesEndRef} />
             </div>
 
             <div style={{
