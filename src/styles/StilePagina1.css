@@ -1,0 +1,47 @@
+/* Stili specifici per la lista della spesa */
+.shopping-table th {
+    /* Stile per le intestazioni della tabella, specifico per la pagina 1 */
+    font-size: 0.9em;
+    font-weight: 600;
+}
+
+.shopping-table td {
+    /* Stile per le celle della tabella */
+    font-size: 0.9em;
+}
+
+.other-prices-dropdown {
+    background-color: #f0f4f7;
+    border: 1px solid #e0e6eb;
+    border-radius: 6px;
+    padding: 8px;
+    margin-top: 5px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.other-prices-dropdown div {
+    padding: 2px 0;
+    font-size: 0.85em;
+    color: #555;
+}
+
+.info-box {
+    padding: 12px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    font-size: 0.9em;
+    line-height: 1.4;
+    text-align: center;
+}
+
+.info-box.yellow {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.info-box.red {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}

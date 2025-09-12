@@ -90,57 +90,58 @@ function DirectVideoChat() {
           try {
             if (payload.type === 'offer') {
               setStatus('Ricevuta offerta, connessione in corso...');
-              // Impostiamo la descrizione remota (ricreiamo l'oggetto)
+              // impostiamo descrizione remota (ricreiamo l'oggetto)
               const remoteDesc = { type: payload.offer?.type, sdp: payload.offer?.sdp };
               await pc.current.setRemoteDescription(remoteDesc);
 
-              // Creiamo la risposta
+              // createAnswer & invio
               const answer = await pc.current.createAnswer();
               await pc.current.setLocalDescription(answer);
 
-              // Inviamo la risposta
               channel.current.send({
                 type: 'broadcast',
                 event: 'webrtc_signal',
                 payload: {
                   senderId: user.id,
                   type: 'answer',
-                  answer: pc.current.localDescription, // Usiamo l'oggetto completo
+                  answer: serializeDesc(pc.current.localDescription),
                 },
               });
 
-              // Processa la coda dei candidati dopo aver impostato la descrizione remota
-              while (iceCandidatesQueue.current.length > 0) {
-                const cand = new RTCIceCandidate(iceCandidatesQueue.current.shift());
+              // svuota la coda dei candidati (se presenti)
+              for (const cand of iceCandidatesQueue.current) {
                 try {
                   await pc.current.addIceCandidate(cand);
                 } catch (err) {
                   console.warn('Errore aggiungendo candidato dalla coda dopo offer:', err);
                 }
               }
-
+              iceCandidatesQueue.current = [];
             } else if (payload.type === 'answer') {
               setStatus('Risposta ricevuta, connessione stabilita.');
               const remoteDesc = { type: payload.answer?.type, sdp: payload.answer?.sdp };
               await pc.current.setRemoteDescription(remoteDesc);
 
-              // Processa la coda dei candidati dopo aver impostato la descrizione remota
-              while (iceCandidatesQueue.current.length > 0) {
-                const cand = new RTCIceCandidate(iceCandidatesQueue.current.shift());
+              // svuota la coda dei candidati
+              for (const cand of iceCandidatesQueue.current) {
                 try {
                   await pc.current.addIceCandidate(cand);
                 } catch (err) {
                   console.warn('Errore aggiungendo candidato dalla coda dopo answer:', err);
                 }
               }
+              iceCandidatesQueue.current = [];
             } else if (payload.type === 'ice-candidate') {
+              // ricrea RTCIceCandidate in modo sicuro
               const candObj = payload.candidate;
               if (!candObj) return;
+              const rtcCandidate = {
+                candidate: candObj.candidate,
+                sdpMid: candObj.sdpMid,
+                sdpMLineIndex: candObj.sdpMLineIndex,
+              };
 
-              // Crea un oggetto RTCIceCandidate in modo sicuro
-              const rtcCandidate = new RTCIceCandidate(candObj);
-
-              // Se remoteDescription è impostata, aggiungi subito, altrimenti metti in coda
+              // se remoteDescription è impostata, aggiungi subito, altrimenti metti in coda
               if (pc.current && pc.current.remoteDescription && pc.current.remoteDescription.sdp) {
                 try {
                   await pc.current.addIceCandidate(rtcCandidate);

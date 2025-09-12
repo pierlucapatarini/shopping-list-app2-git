@@ -19,121 +19,214 @@ function FamilyChat() {
     const [onlineMembers, setOnlineMembers] = useState([]);
     const [selectedDirectCallUser, setSelectedDirectCallUser] = useState('');
 
+    // Stato per debug
+    const [realtimeStatus, setRealtimeStatus] = useState('DISCONNECTED');
+
     useEffect(() => {
         let chatChannel = null;
         let presenceChannel = null;
 
         const fetchInitialDataAndSubscribe = async () => {
+            console.log('🚀 Inizializzazione FamilyChat...');
             setLoading(true);
 
-            const { data: { user } } = await supabase.auth.getUser();
-            setUser(user);
-
-            if (user && user.user_metadata && user.user_metadata.family_group) {
-                const userFamilyGroup = user.user_metadata.family_group;
-                setFamilyGroup(userFamilyGroup);
-
-                const { data: profilesData, error: profilesError } = await supabase
-                    .from('profiles')
-                    .select('id, username')
-                    .eq('family_group', userFamilyGroup);
-
-                if (profilesError) {
-                    console.error('Errore nel recupero dei profili:', profilesError);
-                } else {
-                    setFamilyMembers(profilesData || []);
-                }
-                
-                const { data: messagesData, error: messagesError } = await supabase
-                    .from('messages')
-                    .select('*, profiles(username)')
-                    .eq('family_group', userFamilyGroup)
-                    .order('created_at', { ascending: true });
-
-                if (messagesError) {
-                    console.error('Errore nel recupero dei messaggi:', messagesError);
-                } else {
-                    setMessages(messagesData || []);
+            try {
+                const { data: { user }, error: userError } = await supabase.auth.getUser();
+                if (userError) {
+                    console.error('❌ Errore autenticazione:', userError);
+                    setLoading(false);
+                    return;
                 }
 
-                // Canale di presenza per lo stato online
-                presenceChannel = supabase
-                    .channel('family-group-presence')
-                    .on('presence', { event: 'sync' }, () => {
-                        const newState = presenceChannel.presenceState();
-                        const newOnlineMembers = Object.keys(newState).map(key => newState[key][0].id);
-                        setOnlineMembers(newOnlineMembers);
-                    })
-                    .on('presence', { event: 'join' }, ({ newPresences }) => {
-                        const joinedIds = newPresences.map(p => p.id);
-                        setOnlineMembers(prev => [...new Set([...prev, ...joinedIds])]);
-                    })
-                    .on('presence', { event: 'leave' }, ({ leftPresences }) => {
-                        const leftIds = leftPresences.map(p => p.id);
-                        setOnlineMembers(prev => prev.filter(id => !leftIds.includes(id)));
-                    })
-                    .subscribe(async (status) => {
-                        if (status === 'SUBSCRIBED') {
-                            await presenceChannel.track({ id: user.id });
-                        }
-                    });
+                if (!user) {
+                    console.error('❌ Utente non autenticato');
+                    setLoading(false);
+                    return;
+                }
 
-                // Canale di chat per i messaggi
-                chatChannel = supabase
-                    .channel('messages-channel')
-                    .on(
-                        'postgres_changes',
-                        {
-                            event: 'INSERT',
-                            schema: 'public',
-                            table: 'messages',
-                            filter: `family_group=eq.${userFamilyGroup}`
-                        },
-                        payload => {
-                            setMessages(prevMessages => {
-                                // Cerca se esiste un messaggio temporaneo da sostituire
-                                const tempMsgIndex = prevMessages.findIndex(msg => msg.tempId === payload.new.tempId);
-                                if (tempMsgIndex !== -1) {
-                                    // Se esiste, sostituiscilo con il messaggio definitivo di Supabase
-                                    const updatedMessages = [...prevMessages];
-                                    updatedMessages[tempMsgIndex] = {
-                                        ...payload.new,
-                                        profiles: {
-                                            username: user.user_metadata.username
+                console.log('✅ Utente autenticato:', user.id);
+                setUser(user);
+
+                if (user && user.user_metadata && user.user_metadata.family_group) {
+                    const userFamilyGroup = user.user_metadata.family_group;
+                    console.log('👨‍👩‍👧‍👦 Family Group:', userFamilyGroup);
+                    setFamilyGroup(userFamilyGroup);
+
+                    // Carica i membri della famiglia
+                    console.log('📋 Caricamento membri famiglia...');
+                    const { data: profilesData, error: profilesError } = await supabase
+                        .from('profiles')
+                        .select('id, username')
+                        .eq('family_group', userFamilyGroup);
+
+                    if (profilesError) {
+                        console.error('❌ Errore nel recupero dei profili:', profilesError);
+                    } else {
+                        console.log('✅ Membri famiglia caricati:', profilesData);
+                        setFamilyMembers(profilesData || []);
+                    }
+                    
+                    // Carica i messaggi iniziali
+                    console.log('💬 Caricamento messaggi iniziali...');
+                    const { data: messagesData, error: messagesError } = await supabase
+                        .from('messages')
+                        .select('*, profiles(username)')
+                        .eq('family_group', userFamilyGroup)
+                        .order('created_at', { ascending: true });
+
+                    if (messagesError) {
+                        console.error('❌ Errore nel recupero dei messaggi:', messagesError);
+                    } else {
+                        console.log('✅ Messaggi iniziali caricati:', messagesData?.length || 0);
+                        setMessages(messagesData || []);
+                    }
+
+                    // Canale di presenza per lo stato online
+                    console.log('👥 Configurazione canale presenza...');
+                    presenceChannel = supabase
+                        .channel(`family-presence-${userFamilyGroup}`, {
+                            config: {
+                                presence: { key: user.id },
+                            },
+                        })
+                        .on('presence', { event: 'sync' }, () => {
+                            console.log('👥 Sincronizzazione presenza');
+                            const newState = presenceChannel.presenceState();
+                            const newOnlineMembers = Object.keys(newState).map(key => newState[key][0].id);
+                            console.log('👥 Membri online:', newOnlineMembers);
+                            setOnlineMembers(newOnlineMembers);
+                        })
+                        .on('presence', { event: 'join' }, ({ newPresences }) => {
+                            console.log('👥 Utente entrato:', newPresences);
+                            const joinedIds = newPresences.map(p => p.id);
+                            setOnlineMembers(prev => [...new Set([...prev, ...joinedIds])]);
+                        })
+                        .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+                            console.log('👥 Utente uscito:', leftPresences);
+                            const leftIds = leftPresences.map(p => p.id);
+                            setOnlineMembers(prev => prev.filter(id => !leftIds.includes(id)));
+                        })
+                        .subscribe(async (status) => {
+                            console.log('👥 Stato sottoscrizione presenza:', status);
+                            if (status === 'SUBSCRIBED') {
+                                await presenceChannel.track({ id: user.id });
+                                console.log('👥 Tracking presenza attivo');
+                            }
+                        });
+
+                    // CANALE MESSAGGI - VERSIONE MIGLIORATA
+                    console.log('💬 Configurazione canale messaggi...');
+                    const channelName = `messages-${userFamilyGroup}`;
+                    console.log('💬 Nome canale:', channelName);
+
+                    chatChannel = supabase
+                        .channel(channelName)
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: '*', // Ascolta tutti gli eventi
+                                schema: 'public',
+                                table: 'messages'
+                                // Rimuovo il filtro qui per testare
+                            },
+                            async (payload) => {
+                                console.log('🎉 EVENTO REALTIME RICEVUTO!', payload);
+                                console.log('📊 Payload completo:', JSON.stringify(payload, null, 2));
+                                
+                                // Verifica se il messaggio appartiene al nostro family group
+                                if (payload.new && payload.new.family_group !== userFamilyGroup) {
+                                    console.log('⚠️ Messaggio non per il nostro gruppo, ignorato');
+                                    return;
+                                }
+
+                                if (payload.eventType === 'INSERT' && payload.new) {
+                                    // Recupera il nome utente del mittente
+                                    console.log('👤 Recupero profilo mittente...');
+                                    const { data: senderProfile, error: senderError } = await supabase
+                                        .from('profiles')
+                                        .select('username')
+                                        .eq('id', payload.new.sender_id)
+                                        .single();
+
+                                    const senderUsername = senderError ? 'Sconosciuto' : senderProfile.username;
+                                    console.log('👤 Nome mittente:', senderUsername);
+                                    
+                                    setMessages(prevMessages => {
+                                        console.log('📝 Messaggi attuali prima dell\'aggiunta:', prevMessages.length);
+                                        
+                                        // Controllo duplicati più robusto
+                                        const messageExists = prevMessages.some(msg => 
+                                            msg.id === payload.new.id || 
+                                            (msg.content === payload.new.content && 
+                                             msg.sender_id === payload.new.sender_id && 
+                                             Math.abs(new Date(msg.created_at) - new Date(payload.new.created_at)) < 1000)
+                                        );
+                                        
+                                        if (messageExists) {
+                                            console.log('⚠️ Messaggio duplicato trovato, ignorato');
+                                            return prevMessages;
                                         }
-                                    };
-                                    return updatedMessages;
-                                }
 
-                                // Se non è un messaggio temporaneo, aggiungilo come un nuovo messaggio
-                                // solo se non è già presente
-                                const messageExists = prevMessages.some(msg => msg.id === payload.new.id);
-                                if (messageExists) {
-                                    return prevMessages;
+                                        const newMsg = {
+                                            ...payload.new,
+                                            profiles: {
+                                                username: senderUsername
+                                            }
+                                        };
+                                        
+                                        console.log('✅ Aggiunto nuovo messaggio via real-time:', newMsg);
+                                        const updatedMessages = [...prevMessages, newMsg];
+                                        console.log('📝 Totale messaggi dopo aggiunta:', updatedMessages.length);
+                                        return updatedMessages;
+                                    });
                                 }
-                                
-                                const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
-                                
-                                const newMsg = {
-                                    ...payload.new,
-                                    profiles: {
-                                        username: senderUsername
-                                    }
-                                };
-                                return [...prevMessages, newMsg];
-                            });
-                        }
-                    )
-                    .subscribe();
+                            }
+                        )
+                        .subscribe((status) => {
+                            console.log('💬 Stato sottoscrizione messaggi:', status);
+                            setRealtimeStatus(status);
+                            
+                            if (status === 'SUBSCRIBED') {
+                                console.log('✅ CANALE MESSAGGI ATTIVO!');
+                            } else if (status === 'CHANNEL_ERROR') {
+                                console.error('❌ ERRORE CANALE MESSAGGI!');
+                            } else if (status === 'TIMED_OUT') {
+                                console.error('⏰ TIMEOUT CANALE MESSAGGI!');
+                                // Prova a riconnettersi automaticamente
+                                setTimeout(() => {
+                                    console.log('🔄 Tentativo di riconnessione...');
+                                    chatChannel.subscribe();
+                                }, 3000);
+                            } else if (status === 'CLOSED') {
+                                console.error('🚫 CANALE MESSAGGI CHIUSO!');
+                            }
+                        });
+
+                } else {
+                    console.error('❌ Family group non trovato nei metadati utente');
+                }
+            } catch (error) {
+                console.error('❌ Errore durante l\'inizializzazione:', error);
             }
+            
             setLoading(false);
+            console.log('✅ Inizializzazione completata');
         };
 
         fetchInitialDataAndSubscribe();
 
+        // Cleanup function
         return () => {
-            if (chatChannel) supabase.removeChannel(chatChannel);
-            if (presenceChannel) supabase.removeChannel(presenceChannel);
+            console.log('🧹 Pulizia sottoscrizioni...');
+            if (chatChannel) {
+                console.log('🧹 Rimozione canale messaggi...');
+                supabase.removeChannel(chatChannel);
+            }
+            if (presenceChannel) {
+                console.log('🧹 Rimozione canale presenza...');
+                supabase.removeChannel(presenceChannel);
+            }
+            console.log('🧹 Pulizia completata');
         };
     }, []);
 
@@ -149,6 +242,24 @@ function FamilyChat() {
         return () => document.removeEventListener('click', handleDocClick);
     }, []);
 
+const messagesEndRef = useRef(null);
+
+const scrollToBottom = () => {
+  if (messagesEndRef.current) {
+    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+  }
+};
+
+
+
+
+
+
+
+
+
+
+
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (file && file.size <= 10 * 1024 * 1024) {
@@ -163,86 +274,75 @@ function FamilyChat() {
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
-    const handleSendMessage = async (e) => {
-        e.preventDefault();
-        if ((!newMessage.trim() && !selectedFile) || !familyGroup || !user || uploadingFile) return;
+const handleSendMessage = async (e) => {
+  e.preventDefault();
+  if (!newMessage.trim() || !user || !familyGroup) return;
 
-        let fileUrl = null;
-        let fileName = selectedFile?.name || null;
-        let fileType = selectedFile?.type || null;
+  const messageData = {
+    content: newMessage,
+    family_group: familyGroup,
+    sender_id: user.id,
+  };
 
-        const tempId = `temp-${Date.now()}`;
-        const content = newMessage || (fileName ? `📎 ${fileName}` : '');
+  try {
+    const { data: insertedData, error } = await supabase
+      .from('messages')
+      .insert(messageData)
+      .select('*')
+      .single();
 
-        // Aggiungi subito il messaggio temporaneo allo stato
-        const tempMessage = {
-            id: tempId,
-            tempId: tempId,
-            content,
-            family_group: familyGroup,
-            sender_id: user.id,
-            profiles: {
-                username: user.user_metadata.username
-            },
-            file_url: null,
-            file_name: null,
-            file_type: null,
-            created_at: new Date().toISOString()
-        };
+    if (error) throw error;
+
+    // ✅ fallback: aggiunge subito il messaggio nello stato
+    setMessages(prev => [...prev, {
+      ...insertedData,
+      profiles: { username: user.user_metadata.username || 'Tu' },
+    }]);
+
+    setNewMessage('');
+    scrollToBottom();
+  } catch (error) {
+    console.error('Errore invio messaggio:', error);
+  }
+};
+
+
+    // Test function migliorata per verificare real-time
+    const testRealtime = async () => {
+        console.log('🧪 Test real-time...');
+        const testMessage = `🧪 Test ${new Date().toLocaleTimeString()}`;
         
-        setMessages(prevMessages => [...prevMessages, tempMessage]);
-        
-        setNewMessage('');
-        setSelectedFile(null);
-
-        // Se c'è un file, caricalo prima di inviare il messaggio
-        if (selectedFile) {
-            setUploadingFile(true);
-            try {
-                const fileExt = fileName.split('.').pop();
-                const uniqueFileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-                
-                const { error: uploadError } = await supabase.storage
-                    .from('chat-files') 
-                    .upload(`${familyGroup}/${uniqueFileName}`, selectedFile);
-
-                if (uploadError) {
-                    throw new Error('Errore nel caricamento del file.');
-                }
-
-                const { data: { publicUrl } } = supabase.storage
-                    .from('chat-files')
-                    .getPublicUrl(`${familyGroup}/${uniqueFileName}`);
-
-                fileUrl = publicUrl;
-            } catch (error) {
-                console.error(error.message);
-                alert(error.message);
-                setUploadingFile(false);
-                setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempId));
-                return;
-            } finally {
-                setUploadingFile(false);
-            }
-        }
-        
-        // Invia il messaggio al database
-        const { error } = await supabase
+        const { data, error } = await supabase
             .from('messages')
             .insert({
-                content,
+                content: testMessage,
                 family_group: familyGroup,
                 sender_id: user.id,
-                file_url: fileUrl,
-                file_name: fileName,
-                file_type: fileType,
-                tempId: tempId
-            });
-
+            })
+            .select('*, profiles(username)')
+            .single();
+            
         if (error) {
-            console.error('Errore nell\'invio del messaggio:', error);
-            // In caso di errore, rimuovi il messaggio temporaneo
-            setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempId));
+            console.error('❌ Errore test:', error);
+            alert('Errore nel test: ' + error.message);
+        } else {
+            console.log('✅ Messaggio test inviato:', data);
+            
+            // Verifica se il messaggio appare via real-time
+            setTimeout(() => {
+                setMessages(prevMessages => {
+                    const exists = prevMessages.some(msg => msg.id === data.id);
+                    if (!exists) {
+                        console.log('⚠️ Test fallito - messaggio non ricevuto via real-time');
+                        alert('⚠️ Real-time non funziona correttamente');
+                        return [...prevMessages, data];
+                    } else {
+                        console.log('✅ Test riuscito - real-time funzionante!');
+                        alert('✅ Real-time funziona correttamente!');
+                    }
+                    return prevMessages;
+                });
+            }, 1000);
         }
     };
 
@@ -376,11 +476,31 @@ function FamilyChat() {
         <div style={{ height: '100vh', backgroundColor: '#e5ddd5', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column',
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-opacity='0.03'%3E%3Cpolygon fill='%23000' points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")` 
         }}>
+            {/* Header con indicatore real-time migliorato */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px',
                 backgroundColor: '#075E54', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 1000, flexWrap: 'wrap'
             }}>
                 <div style={{ flex: 1, minWidth: '200px', display: 'flex', flexDirection: 'column', color: 'white' }}>
                     <h1 style={{ fontSize: '1.6em', margin: 0 }}>💬 Patarini's Social Chat</h1>
+                    
+                    {/* Indicatore stato real-time migliorato */}
+                    <div style={{ 
+                        display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.8em', marginTop: '2px',
+                        color: realtimeStatus === 'SUBSCRIBED' ? '#4ade80' : '#ef4444'
+                    }}>
+                        <span style={{ 
+                            width: '8px', height: '8px', borderRadius: '50%',
+                            backgroundColor: realtimeStatus === 'SUBSCRIBED' ? '#4ade80' : '#ef4444',
+                            animation: realtimeStatus === 'SUBSCRIBED' ? 'pulse 2s infinite' : 'none'
+                        }}></span>
+                        Real-time: {realtimeStatus}
+                        {realtimeStatus !== 'SUBSCRIBED' && (
+                            <span style={{ marginLeft: '5px', fontSize: '0.7em' }}>
+                                (I messaggi potrebbero non apparire in tempo reale)
+                            </span>
+                        )}
+                    </div>
+                    
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginTop: '5px' }}>
                         {familyMembers.map((member) => {
                             const isOnline = onlineMembers.includes(member.id);
@@ -411,6 +531,16 @@ function FamilyChat() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '250px', alignItems: 'flex-end', marginTop: '10px' }}>
+                    {/* Pulsante test real-time */}
+                    <button onClick={testRealtime} 
+                        style={{ 
+                            padding: '4px 10px', borderRadius: '15px', backgroundColor: '#ff6b35',
+                            color: 'white', border: 'none', cursor: 'pointer', width: '100%',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.8em'
+                        }}>
+                        🧪 Test Real-time
+                    </button>
+                    
                     <div style={{ display: 'flex', gap: '10px', alignItems: 'center', width: '100%' }}>
                         <select onChange={(e) => setSelectedDirectCallUser(e.target.value)}
                             style={{ flex: 1, padding: '8px', borderRadius: '15px', border: 'none', outline: 'none' }}>
@@ -449,6 +579,17 @@ function FamilyChat() {
                     </button>
                 </div>
             </div>
+
+            {/* Aggiungi CSS per l'animazione pulse */}
+            <style>
+                {`
+                    @keyframes pulse {
+                        0% { opacity: 1; }
+                        50% { opacity: 0.5; }
+                        100% { opacity: 1; }
+                    }
+                `}
+            </style>
 
             <div ref={chatContainerRef} style={{ 
                 flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column',

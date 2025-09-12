@@ -90,30 +90,16 @@ function FamilyChat() {
                             filter: `family_group=eq.${userFamilyGroup}`
                         },
                         payload => {
+                            // Cerca il mittente nell'array dei profili già caricato
+                            const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
+                            
                             setMessages(prevMessages => {
-                                // Cerca se esiste un messaggio temporaneo da sostituire
-                                const tempMsgIndex = prevMessages.findIndex(msg => msg.id === payload.new.tempId);
-                                if (tempMsgIndex !== -1) {
-                                    // Se esiste, sostituiscilo con il messaggio definitivo di Supabase
-                                    const updatedMessages = [...prevMessages];
-                                    updatedMessages[tempMsgIndex] = {
-                                        ...payload.new,
-                                        profiles: {
-                                            username: user.user_metadata.username
-                                        }
-                                    };
-                                    return updatedMessages;
-                                }
-
-                                // Se non è un messaggio temporaneo, aggiungilo come un nuovo messaggio
-                                // solo se non è già presente
+                                // Evita di aggiungere lo stesso messaggio più volte
                                 const messageExists = prevMessages.some(msg => msg.id === payload.new.id);
                                 if (messageExists) {
                                     return prevMessages;
                                 }
-                                
-                                const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
-                                
+
                                 const newMsg = {
                                     ...payload.new,
                                     profiles: {
@@ -170,32 +156,7 @@ function FamilyChat() {
         let fileUrl = null;
         let fileName = selectedFile?.name || null;
         let fileType = selectedFile?.type || null;
-
-        // Crea un ID temporaneo
-        const tempId = Date.now();
-        const content = newMessage || (fileName ? `📎 ${fileName}` : '');
-
-        // Aggiungi subito il messaggio temporaneo allo stato
-        const tempMessage = {
-            id: tempId,
-            tempId: tempId,
-            content,
-            family_group: familyGroup,
-            sender_id: user.id,
-            profiles: {
-                username: user.user_metadata.username
-            },
-            file_url: null,
-            file_name: null,
-            file_type: null,
-            created_at: new Date().toISOString()
-        };
         
-        setMessages(prevMessages => [...prevMessages, tempMessage]);
-        
-        setNewMessage('');
-        setSelectedFile(null);
-
         // Se c'è un file, caricalo prima di inviare il messaggio
         if (selectedFile) {
             setUploadingFile(true);
@@ -226,22 +187,23 @@ function FamilyChat() {
             }
         }
         
-        // Invia il messaggio al database
+        // Invia il messaggio al database. Il broadcast di Supabase si occuperà di aggiungerlo al client.
         const { error } = await supabase
             .from('messages')
             .insert({
-                content,
+                content: newMessage || (fileName ? `📎 ${fileName}` : ''),
                 family_group: familyGroup,
                 sender_id: user.id,
                 file_url: fileUrl,
                 file_name: fileName,
-                file_type: fileType
+                file_type: fileType,
             });
 
+        setNewMessage('');
+        setSelectedFile(null);
+        
         if (error) {
             console.error('Errore nell\'invio del messaggio:', error);
-            // In caso di errore, rimuovi il messaggio temporaneo
-            setMessages(prevMessages => prevMessages.filter(msg => msg.id !== tempId));
         }
     };
 
@@ -463,7 +425,7 @@ function FamilyChat() {
                     messages.length === 0 ? (
                         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
                             <div style={{ padding: '30px', backgroundColor: 'rgba(255,255,255,0.9)',
-                                borderRadius: '20px', boxShadow: '0 4px 15px rgba(0,0,0,0.1)',
+                                borderRadius: '20px', boxShadow: '0 44px 15px rgba(0,0,0,0.1)',
                                 textAlign: 'center', color: '#666'
                             }}>
                                 <div style={{ fontSize: '2em', marginBottom: '10px' }}>💭</div>
@@ -471,7 +433,7 @@ function FamilyChat() {
                             </div>
                         </div>
                     ) : (
-                        messages.map((msg, index) => (
+                        messages.map((msg) => (
                             <div key={msg.id} style={{ width: '100%' }}>
                                 <div style={{ display: 'block', margin: '0 auto', color: '#888', fontSize: '0.75em',
                                     marginBottom: '8px', backgroundColor: 'rgba(255,255,255,0.7)',

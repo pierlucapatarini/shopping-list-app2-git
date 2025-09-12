@@ -83,8 +83,7 @@ export default function Pagina1_ShoppingList() {
 
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      // In a real app, use a custom modal instead of alert
-      window.alert('Il riconoscimento vocale non è supportato dal tuo browser');
+      alert('Il riconoscimento vocale non è supportato dal tuo browser');
       return;
     }
 
@@ -108,8 +107,7 @@ export default function Pagina1_ShoppingList() {
     recognition.onerror = (event) => {
       console.error('Errore riconoscimento vocale:', event.error);
       setIsListening(false);
-      // In a real app, use a custom modal instead of alert
-      window.alert('Errore nel riconoscimento vocale: ' + event.error);
+      alert('Errore nel riconoscimento vocale: ' + event.error);
     };
 
     recognition.onend = () => {
@@ -164,7 +162,6 @@ async function addProductToShopping(prod) {
   }
 
   async function clearShoppingList() {
-    // In a real app, use a custom modal instead of window.confirm
     if (!window.confirm("Sei sicuro di azzerare tutta la lista?")) return;
     await supabase.from("shopping_items").delete().eq("family_group", familyGroup);
     setShoppingItems([]);
@@ -173,7 +170,6 @@ async function addProductToShopping(prod) {
 async function finishShopping() {
     const taken = shoppingItems.filter(i => i.fatto);
     if (taken.length === 0) { 
-        // In a real app, use a custom modal instead of window.alert
         window.alert("Nessun articolo selezionato come preso."); 
         return; 
     }
@@ -196,7 +192,6 @@ async function finishShopping() {
     const idsToDelete = taken.map(t => t.id);
     await supabase.from("shopping_items").delete().in("id", idsToDelete);
     setShoppingItems(prev => prev.filter(i => !idsToDelete.includes(i.id)));
-    // In a real app, use a custom modal instead of window.alert
     window.alert("Acquisti salvati.");
 }
 
@@ -224,7 +219,7 @@ async function finishShopping() {
   }, [shoppingItems, sortConfig, selectedSupermarket, categorie]);
 
   return (
-    <div className="app-layout">
+    <div className="container">
       
       <div className="header">
         <h1>Lista della Spesa</h1>
@@ -234,12 +229,12 @@ async function finishShopping() {
         </button>
       </div>
 
-      <div className="controls-container">
+      <div className="main-content">
         <div className="info-box yellow">
           <h2>Selezionare Supermercato</h2>
           <p>Serve per la corsia e per i prezzi</p>
         </div>
-        <div className="tab-buttons">
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           {SUPERMARKETS.map(s => (
             <button 
               key={s.key} 
@@ -255,7 +250,7 @@ async function finishShopping() {
           <h2>Modalità Inserimento</h2>
           <p>Seleziona come vuoi aggiungere prodotti alla lista</p>
         </div>
-        <div className="tab-buttons">
+        <div style={{ textAlign: 'center', marginBottom: '20px' }}>
           <button 
             className={`tab-button ${mode === 'archivio' ? 'active' : ''}`} 
             onClick={() => setMode('archivio')}
@@ -281,9 +276,7 @@ async function finishShopping() {
             Ricette
           </button>
         </div>
-      </div>
 
-      <div className="main-content">
         {mode !== 'ricette' && (
           <div className="input-group">
             <input
