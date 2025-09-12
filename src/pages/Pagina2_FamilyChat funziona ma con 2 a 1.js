@@ -62,9 +62,6 @@ function FamilyChat() {
             async (payload) => {
               if (!payload.new) return;
 
-              // se il messaggio è del mio utente -> ignora (evita duplicati)
-              if (payload.new.sender_id === user.id) return;
-
               // recupera username mittente
               const { data: senderData } = await supabase
                 .from('profiles')
@@ -118,7 +115,7 @@ function FamilyChat() {
 
       if (error) throw error;
 
-      // fallback locale: aggiunge subito il messaggio (solo a video)
+      // fallback locale: aggiunge subito il messaggio
       setMessages((prev) => [
         ...prev,
         {
@@ -145,7 +142,7 @@ function FamilyChat() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
       <div style={{ padding: '15px', backgroundColor: '#075E54', color: 'white' }}>
-        <h1>💬 Patarini's Social Chat (fix duplicati)</h1>
+        <h1>💬 Patarini's Social Chat 14.0.1</h1>
         <div>Realtime: {realtimeStatus}</div>
       </div>
 
