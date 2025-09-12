@@ -2,15 +2,22 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "../styles/MainStyle.css"; // Nuovo file di stile di base
-import "../styles/StilePagina1.css"; // Nuovo file di stile specifico
+
 
 // Non toccare i dati, solo la presentazione
 const SUPERMARKETS = [
-  { key: "esselunga", label: "Esselunga", priceField: "prezzo_esselunga", corsiaField: "corsia_esselunga" },
-  { key: "mercato", label: "Mercato", priceField: "prezzo_mercato", corsiaField: "corsia_mercato" },
-  { key: "carrefour", label: "Carrefour", priceField: "prezzo_carrefour", corsiaField: "corsia_carrefour" },
-  { key: "penny", label: "Penny", priceField: "prezzo_penny", corsiaField: "corsia_penny" },
-  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "corsia_coop" },
+  { key: "esselunga", label: "Esselunga", priceField: "prezzo_esselunga", corsiaField: "corsia_esselunga", icon: "🛒" },
+  { key: "mercato", label: "Mercato", priceField: "prezzo_mercato", corsiaField: "corsia_mercato", icon: "🍏" },
+  { key: "carrefour", label: "Carrefour", priceField: "prezzo_carrefour", corsiaField: "corsia_carrefour", icon: "🇫🇷" },
+  { key: "penny", label: "Penny", priceField: "prezzo_penny", corsiaField: "corsia_penny", icon: "💰" },
+  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "corsia_coop", icon: "🤝" },
+];
+
+const MODES = [
+  { key: "archivio", label: "Archivio", icon: "📚" },
+  { key: "preferiti", label: "Preferiti", icon: "⭐️" },
+  { key: "vocale", label: "Comando Vocale", icon: "🎤" },
+  { key: "ricette", label: "Ricette", icon: "👩‍🍳" },
 ];
 
 export default function Pagina1_ShoppingList() {
@@ -21,7 +28,7 @@ export default function Pagina1_ShoppingList() {
   const [categorie, setCategorie] = useState([]);
   const [shoppingItems, setShoppingItems] = useState([]);
   const [selectedSupermarket, setSelectedSupermarket] = useState(SUPERMARKETS[0].key);
-  const [mode, setMode] = useState("archivio");
+  const [mode, setMode] = useState(MODES[0].key);
   const [searchQuery, setSearchQuery] = useState("");
   const [showOtherPrices, setShowOtherPrices] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
@@ -83,7 +90,6 @@ export default function Pagina1_ShoppingList() {
 
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-      // In a real app, use a custom modal instead of alert
       window.alert('Il riconoscimento vocale non è supportato dal tuo browser');
       return;
     }
@@ -108,7 +114,6 @@ export default function Pagina1_ShoppingList() {
     recognition.onerror = (event) => {
       console.error('Errore riconoscimento vocale:', event.error);
       setIsListening(false);
-      // In a real app, use a custom modal instead of alert
       window.alert('Errore nel riconoscimento vocale: ' + event.error);
     };
 
@@ -164,7 +169,6 @@ async function addProductToShopping(prod) {
   }
 
   async function clearShoppingList() {
-    // In a real app, use a custom modal instead of window.confirm
     if (!window.confirm("Sei sicuro di azzerare tutta la lista?")) return;
     await supabase.from("shopping_items").delete().eq("family_group", familyGroup);
     setShoppingItems([]);
@@ -173,7 +177,6 @@ async function addProductToShopping(prod) {
 async function finishShopping() {
     const taken = shoppingItems.filter(i => i.fatto);
     if (taken.length === 0) { 
-        // In a real app, use a custom modal instead of window.alert
         window.alert("Nessun articolo selezionato come preso."); 
         return; 
     }
@@ -196,7 +199,6 @@ async function finishShopping() {
     const idsToDelete = taken.map(t => t.id);
     await supabase.from("shopping_items").delete().in("id", idsToDelete);
     setShoppingItems(prev => prev.filter(i => !idsToDelete.includes(i.id)));
-    // In a real app, use a custom modal instead of window.alert
     window.alert("Acquisti salvati.");
 }
 
@@ -227,7 +229,7 @@ async function finishShopping() {
     <div className="app-layout">
       
       <div className="header">
-        <h1>Lista della Spesa</h1>
+        <h1>Lista della Spesa 🛒</h1>
         <p>Gruppo Famiglia: <strong>{familyGroup || '...'}</strong></p>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
           Menu Principale
@@ -235,9 +237,9 @@ async function finishShopping() {
       </div>
 
       <div className="controls-container">
-        <div className="info-box yellow">
-          <h2>Selezionare Supermercato</h2>
-          <p>Serve per la corsia e per i prezzi</p>
+        <div className="info-box">
+          <h2>Seleziona Supermercato</h2>
+          <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
         </div>
         <div className="tab-buttons">
           {SUPERMARKETS.map(s => (
@@ -246,40 +248,25 @@ async function finishShopping() {
               className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`} 
               onClick={() => setSelectedSupermarket(s.key)}
             >
-              {s.label}
+              {s.icon} {s.label}
             </button>
           ))}
         </div>
 
-        <div className="info-box yellow">
+        <div className="info-box">
           <h2>Modalità Inserimento</h2>
-          <p>Seleziona come vuoi aggiungere prodotti alla lista</p>
+          <p>Scegli come aggiungere prodotti alla lista.</p>
         </div>
         <div className="tab-buttons">
-          <button 
-            className={`tab-button ${mode === 'archivio' ? 'active' : ''}`} 
-            onClick={() => setMode('archivio')}
-          >
-            Archivio
-          </button>
-          <button 
-            className={`tab-button ${mode === 'preferiti' ? 'active' : ''}`} 
-            onClick={() => setMode('preferiti')}
-          >
-            Preferiti
-          </button>
-          <button 
-            className={`tab-button ${mode === 'vocale' ? 'active' : ''}`} 
-            onClick={() => setMode('vocale')}
-          >
-            Comando Vocale
-          </button>
-          <button 
-            className={`tab-button ${mode === 'ricette' ? 'active' : ''}`} 
-            onClick={() => navigate('/pagina3-ricette-ai')}
-          >
-            Ricette
-          </button>
+          {MODES.map(m => (
+            <button 
+              key={m.key} 
+              className={`tab-button ${mode === m.key ? 'active' : ''}`} 
+              onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
+            >
+              {m.icon} {m.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -289,7 +276,7 @@ async function finishShopping() {
             <input
               type="text"
               className="search-input"
-              placeholder={mode === 'preferiti' ? 'Cerca nei preferiti...' : mode === 'vocale' ? 'Cerca o usa il microfono...' : 'Cerca prodotto...'}
+              placeholder={mode === 'preferiti' ? 'Cerca nei preferiti...' : mode === 'vocale' ? 'Parla per cercare...' : 'Cerca un prodotto...'}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -308,37 +295,47 @@ async function finishShopping() {
               className="btn-primary"
               onClick={() => navigate('/pagina4-archivio-prodotti')}
             >
-              Aggiungi nuovo
+              + Nuovo
             </button>
           </div>
         )}
 
         {(mode === 'preferiti' || searchQuery) && mode !== 'ricette' && searchResults.length > 0 && (
-          <ul className="list">
-            {searchResults.map(p => {
-              const categoria = findCategory(p.categoria || p.categoria_id);
-              return (
-                <li key={p.id || p.articolo} className="list-item">
-                  <div className="item-main">
-                    <strong>{p.articolo || p}</strong>
-                    {p.preferito && <span style={{ color: '#ffd700', marginLeft: '5px' }}>⭐</span>}
-                    <small style={{ display: 'block', color: '#666', marginTop: '2px' }}>{p.descrizione}</small>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', marginTop: '5px' }}>
-                    <div style={{ fontSize: '0.9em', color: '#888', flex: 1 }}>
-                      Categoria: {categoria?.name || 'N/A'}
-                    </div>
-                    <button className="btn-add" onClick={() => addProductToShopping(p)}>Aggiungi</button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="shopping-table-container">
+            <table className="shopping-table">
+              <thead>
+                <tr>
+                  <th>Articolo</th>
+                  <th>Descrizione</th>
+                  <th>Categoria</th>
+                  <th>Azione</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchResults.map(p => {
+                  const categoria = findCategory(p.categoria || p.categoria_id);
+                  return (
+                    <tr key={p.id || p.articolo}>
+                      <td>
+                        <strong>{p.articolo || p}</strong>
+                        {p.preferito && <span role="img" aria-label="preferito">⭐</span>}
+                      </td>
+                      <td>{p.descrizione}</td>
+                      <td>{categoria?.name || 'N/A'}</td>
+                      <td>
+                        <button className="btn-add" onClick={() => addProductToShopping(p)}>Aggiungi</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {mode === 'preferiti' && searchResults.length === 0 && (
           <div className="info-box red">
-            Nessun prodotto preferito trovato per il gruppo famiglia.
+            Nessun prodotto preferito trovato.
           </div>
         )}
 
@@ -354,22 +351,17 @@ async function finishShopping() {
               <thead>
                 <tr>
                   <th>
-                    <div className="sort-header">
-                      <span onClick={() => setSortConfig({ key: 'corsia', ascending: true })}>↑</span>
-                      Corsia
-                      <span onClick={() => setSortConfig({ key: 'corsia', ascending: false })}>↓</span>
+                    <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
+                      Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
                   <th>
-                    <div className="sort-header">
-                      <span onClick={() => setSortConfig({ key: 'categoria', ascending: true })}>↑</span>
-                      Categoria
-                      <span onClick={() => setSortConfig({ key: 'categoria', ascending: false })}>↓</span>
+                    <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
+                      Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
                   <th>Articolo</th>
                   <th>Quantità</th>
-                  <th>Unità</th>
                   <th>Prezzo</th>
                   <th>Preso</th>
                   <th>Elimina</th>
@@ -390,7 +382,6 @@ async function finishShopping() {
                       <td>
                         <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
                       </td>
-                      <td>{item.unita_misura}</td>
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <input type="number" className="small-input" value={prezzo} onChange={e => handleUpdateShoppingItem(item.id, { prezzo: parseFloat(e.target.value) })} />
@@ -401,18 +392,18 @@ async function finishShopping() {
                           >
                             ...
                           </button>
+                          {showOtherPrices === item.id && (
+                            <div className="other-prices-dropdown">
+                              {SUPERMARKETS.map(s => <div key={s.key}>{s.label}: {prodotto?.[s.priceField] ?? '-'}</div>)}
+                            </div>
+                          )}
                         </div>
-                        {showOtherPrices === item.id && (
-                          <div className="other-prices-dropdown">
-                            {SUPERMARKETS.map(s => <div key={s.key}>{s.label}: {prodotto?.[s.priceField] ?? '-'}</div>)}
-                          </div>
-                        )}
                       </td>
                       <td>
                         <input type="checkbox" checked={item.fatto} onChange={() => toggleTaken(item)} />
                       </td>
                       <td>
-                        <button className="btn-delete" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>Elimina</button>
+                        <button className="btn-delete" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
                       </td>
                     </tr>
                   );
@@ -426,8 +417,8 @@ async function finishShopping() {
       <div className="footer">
         {shoppingItems.length > 0 && (
           <div className="input-group">
-            <button className="btn-primary" onClick={clearShoppingList}>Azzera Lista</button>
-            <button className="btn-add" onClick={finishShopping}>FINE SPESA</button>
+            <button className="btn-delete" onClick={clearShoppingList}>Azzera Lista</button>
+            <button className="btn-primary" onClick={finishShopping}>FINE SPESA 🥳</button>
           </div>
         )}
       </div>

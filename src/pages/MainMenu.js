@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
+import '../styles/MainStyle.css';
 
 function MainMenu() {
   const navigate = useNavigate();
@@ -10,287 +11,88 @@ function MainMenu() {
     navigate('/');
   };
 
-  const buttonStyle = {
-    padding: '20px 24px',
-    borderRadius: '16px',
-    border: 'none',
-    cursor: 'pointer',
-    color: 'white',
-    fontSize: '1em',
-    fontWeight: '600',
-    boxShadow: '0 8px 25px rgba(0,0,0,0.15)',
-    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '120px',
-    position: 'relative',
-    overflow: 'hidden',
-    textAlign: 'center',
-    lineHeight: '1.4',
-    // Tutti i bottoni sono verdi di default
-    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-  };
-
-  const buttonHoverStyle = {
-    transform: 'translateY(-8px) scale(1.02)',
-    boxShadow: '0 20px 40px rgba(239, 68, 68, 0.5)',
-    // Al passaggio del mouse diventano rossi
-    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
-  };
-
-  const containerStyle = {
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    padding: '40px 20px',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-    position: 'relative',
-  };
-
-  const cardStyle = {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    backdropFilter: 'blur(20px)',
-    padding: '50px',
-    borderRadius: '24px',
-    boxShadow: '0 25px 50px rgba(0,0,0,0.15)',
-    textAlign: 'center',
-    maxWidth: '90%',
-    width: '700px',
-    border: '1px solid rgba(255,255,255,0.2)',
-    position: 'relative',
-  };
-
-  const headerStyle = {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-    flexWrap: 'wrap',
-    gap: '20px',
-  };
-
-  const titleStyle = {
-    margin: 0,
-    fontSize: '2.5em',
-    fontWeight: '700',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    backgroundClip: 'text',
-  };
-
-  const logoutButtonStyle = {
-    padding: '12px 24px',
-    borderRadius: '12px',
-    backgroundColor: '#ef4444',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: '600',
-    fontSize: '0.95em',
-    boxShadow: '0 4px 15px rgba(239, 68, 68, 0.3)',
-    transition: 'all 0.3s ease',
-  };
-
-  const subtitleStyle = {
-    color: '#64748b',
-    marginBottom: '50px',
-    fontSize: '1.2em',
-    fontWeight: '500',
-  };
-
-  const gridStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '25px',
-    marginBottom: '40px',
-  };
-
-  // Decorative elements
-  const decorativeCircle1 = {
-    position: 'absolute',
-    top: '10%',
-    right: '10%',
-    width: '200px',
-    height: '200px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%)',
-    filter: 'blur(1px)',
-    zIndex: '0',
-  };
-
-  const decorativeCircle2 = {
-    position: 'absolute',
-    bottom: '15%',
-    left: '5%',
-    width: '150px',
-    height: '150px',
-    borderRadius: '50%',
-    background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)',
-    filter: 'blur(1px)',
-    zIndex: '0',
-  };
-
   return (
-    <div style={containerStyle}>
-      <div style={decorativeCircle1}></div>
-      <div style={decorativeCircle2}></div>
-      
-      <div style={cardStyle}>
-        <div style={headerStyle}>
-          <h1 style={titleStyle}>Menu Principale</h1>
-          <button
-            onClick={handleLogout}
-            style={logoutButtonStyle}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 8px 25px rgba(239, 68, 68, 0.4)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = 'translateY(0px)';
-              e.currentTarget.style.boxShadow = '0 4px 15px rgba(239, 68, 68, 0.3)';
-            }}
-          >
-            Esci
-          </button>
-        </div>
+    <div className="app-layout">
+      <header className="header">
+        <h1>🏡 Menu Principale</h1>
+        <button className="btn-secondary" onClick={handleLogout}>
+          Log out
+        </button>
+      </header>
 
-        <p style={subtitleStyle}>Seleziona un'opzione per continuare</p>
+      <main className="main-content main-menu-grid">
+        {/* Pagina 1 - Lista della Spesa */}
+        <button
+          onClick={() => navigate('/pagina1-shopping-list')}
+          className="menu-button"
+        >
+          🛒 Pagina 1<br />Lista della Spesa
+        </button>
 
-        <div style={gridStyle}>
-          
-          {/* Pagina 1 - Lista della Spesa */}
-          <button
-            onClick={() => navigate('/pagina1-shopping-list')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            🛒 Pagina 1<br/>Lista Spesa
-          </button>
+        {/* Pagina 2 - Chat di Famiglia */}
+        <button
+          onClick={() => navigate('/pagina2-family-chat')}
+          className="menu-button"
+        >
+          ✅ Pagina 2<br />Chat di Famiglia
+        </button>
 
-          {/* Pagina 2 - Family Chat */}
-          <button
-            onClick={() => navigate('/pagina2-family-chat')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            💬 Pagina 2<br/>Family Chat
-          </button>
+        {/* Pagina 3 - Ricette AI */}
+        <button
+          onClick={() => navigate('/pagina3-ricette-ai')}
+          className="menu-button"
+        >
+          👩‍🍳 Pagina 3<br />Ricette AI
+        </button>
 
-          {/* Pagina 3 - Ricette AI */}
-          <button
-            onClick={() => navigate('/pagina3-ricette-ai')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            🤖 Pagina 3<br/>Sezione Food - Ricette con AI
-          </button>
+        {/* Pagina 4 - Archivio Prodotti */}
+        <button
+          onClick={() => navigate('/pagina4-archivio-prodotti')}
+          className="menu-button"
+        >
+          📦 Pagina 4<br />Archivio Prodotti
+        </button>
 
-          {/* Pagina 4 - Archivio Prodotti e analosi */}
-          <button
-            onClick={() => navigate('/pagina4-archivio-prodotti')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            📦 Pagina 4<br/>Archivio Prodotti per la Spesa & Analisti Prezzi
-          </button>
+        {/* Pagina 5 - Offerte Volantini */}
+        <button
+          onClick={() => navigate('/pagina5-offerte-volantini')}
+          className="menu-button"
+        >
+          📊 Pagina 5<br />Offerte da volantini
+        </button>
 
-          {/* Pagina 5 - Offerte Volantini */}
-          <button
-            onClick={() => navigate('/pagina5-offerte-volantini')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            🏷️ Pagina 5<br/>Offerte Volantini
-          </button>
+        {/* Pagina 6 - Calendario Appuntameni */}
+        <button
+          onClick={() => navigate('/pagina6-calendario-appuntamenti')}
+          className="menu-button"
+        >
+          🏷️ Pagina 6<br />Calendario Appuntamenti Famiglia
+        </button>
 
-          {/* Pagina 6 - Calendario Appuntamenti */}
-          <button
-            onClick={() => navigate('/pagina6-calendario-appuntamenti')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            📅 Pagina 6<br/>Calendario Appuntamenti
-          </button>
+        {/* Pagina 7 - Gestione Farmaci e somministrazione*/}
+        <button
+          onClick={() => navigate('/pagina7-gestione-farmaci')}
+          className="menu-button"
+        >
+          💊 Pagina 7<br />Calendario Farmaci & Gestione
+        </button>
 
-          {/* Pagina 7 - Gestione Farmaci */}
-          <button
-            onClick={() => navigate('/pagina7-gestione-farmaci')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            💊 Pagina 7<br/>Gestione Farmaci
-          </button>
+        {/* Pagina 8 - Archivio Documenti */}
+        <button
+          onClick={() => navigate('/pagina8-archivio-documenti')}
+          className="menu-button"
+        >
+          📁 Pagina 8<br />Archivio Documenti
+        </button>
 
-          {/* Pagina 8 - Archivio Documenti */}
-          <button
-            onClick={() => navigate('/pagina8-archivio-documenti')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            📁 Pagina 8<br/>Archivio Documenti
-          </button>
-
-          {/* Pagina 9 - Gestione Utenti */}
-          <button
-            onClick={() => navigate('/pagina9-gestione-utenti')}
-            style={buttonStyle}
-            onMouseEnter={(e) => Object.assign(e.currentTarget.style, buttonHoverStyle)}
-            onMouseLeave={(e) => Object.assign(e.currentTarget.style, { 
-              transform: 'translateY(0px) scale(1)', 
-              boxShadow: buttonStyle.boxShadow,
-              background: buttonStyle.background 
-            })}
-          >
-            👥 Pagina 9<br/>Gestione Utenti
-          </button>
-
-        </div>
-      </div>
+        {/* Pagina 9 - Gestione Utenti */}
+        <button
+          onClick={() => navigate('/pagina9-gestione-utenti')}
+          className="menu-button"
+        >
+          👥 Pagina 9<br />Gestione Utenti
+        </button>
+      </main>
     </div>
   );
 }

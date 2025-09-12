@@ -7,8 +7,6 @@ import Pagina1_ShoppingList from './pages/Pagina1_ShoppingList';
 import Pagina2_FamilyChat from './pages/Pagina2_FamilyChat';
 import SottoPagina2_VideochiamataDiretta from './pages/SottoPagina2_VideochiamataDiretta'; // Importa questo
 import SottoPagina2_VideochiamataGruppo from './pages/SottoPagina2_VideochiamataGruppo'; // Importa questo
-
-
 import Pagina3_RicetteAI from './pages/Pagina3_RicetteAI';
 import Pagina4_ArchivioProdotti from './pages/Pagina4_ArchivioProdotti';
 import Pagina5_OfferteVolantini from './pages/Pagina5_OfferteVolantini';

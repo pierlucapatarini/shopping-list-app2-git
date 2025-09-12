@@ -6,7 +6,7 @@ import it from 'date-fns/locale/it';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import '../styles/archivio.css';
+import '../styles/MainStyle.css';
 import { FaEdit, FaTrash, FaPlus, FaTimes, FaExchangeAlt } from 'react-icons/fa';
 
 const locales = { it };
@@ -67,7 +67,7 @@ export default function Pagina7_GestioneFarmaci() {
     const [showMagazzinoModal, setShowMagazzinoModal] = useState(false);
     const [showArchivioModal, setShowArchivioModal] = useState(false);
     const [showUpdateStockModal, setShowUpdateStockModal] = useState(false);
-    
+
     // Nuovo stato per la gestione delle modifiche in riga
     const [editedFarmaci, setEditedFarmaci] = useState({});
 
@@ -77,7 +77,7 @@ export default function Pagina7_GestioneFarmaci() {
         repeatPattern: 'nessuna', repeatEndDate: '',
         isNotificationEnabled: false, sendBefore: 1, selectedEmails: []
     });
-    
+
     const [magazzinoFormData, setMagazzinoFormData] = useState({
         id: null, nome_farmaco: '', dosaggio: '', istruzioni: '',
         quantita_attuale: 0, quantita_scortaminima: 0, giorni_ricezione: ''
@@ -166,7 +166,7 @@ export default function Pagina7_GestioneFarmaci() {
         }
         return eventsToInsert;
     };
-    
+
     const handleSaveEvent = async (e) => {
         e.preventDefault();
         if (!profile?.family_group || !formData.nome_farmaco || !formData.quantita) {
@@ -187,7 +187,7 @@ export default function Pagina7_GestioneFarmaci() {
             categoria_eve: 'FARMACO',
             nome_farmaco: formData.nome_farmaco,
             quantita: formData.quantita,
-            notify_at: formData.isNotificationEnabled ? 
+            notify_at: formData.isNotificationEnabled ?
                 new Date(startDateTime.getTime() - formData.sendBefore * 60 * 60 * 1000).toISOString() : null,
             notify_emails: formData.isNotificationEnabled ? formData.selectedEmails : [],
             family_group: profile.family_group,
@@ -199,7 +199,7 @@ export default function Pagina7_GestioneFarmaci() {
             if (formData.repeatPattern === 'nessuna' || formData.repeatPattern === undefined || formData.repeatPattern === '') {
                 // Gestione di un singolo evento
                 const eventData = { ...baseEvent, start: startDateTime.toISOString(), end: endDateTime.toISOString() };
-                
+
                 if (modalData?.id) {
                     // Update
                     const { data, error } = await supabase.from('events_farmaci').update(eventData).eq('id', modalData.id).select();
@@ -221,16 +221,16 @@ export default function Pagina7_GestioneFarmaci() {
                     repeatPattern: formData.repeatPattern,
                     repeatEndDate: formData.repeatEndDate,
                 });
-                
+
                 if (modalData?.recurrence_id) {
                     await supabase.from('events_farmaci').delete().eq('recurrence_id', modalData.recurrence_id);
                 }
 
                 const { data, error } = await supabase.from('events_farmaci').insert(eventsToInsert).select();
                 if (error) throw error;
-                
+
                 setEvents(prev => {
-                    const filtered = modalData?.recurrence_id 
+                    const filtered = modalData?.recurrence_id
                         ? prev.filter(ev => ev.recurrence_id !== modalData.recurrence_id)
                         : prev;
                     const newEvents = data.map(e => ({ ...e, start: new Date(e.start), end: new Date(e.end) }));
@@ -243,7 +243,7 @@ export default function Pagina7_GestioneFarmaci() {
             alert(`Errore: ${err.message}`);
         }
     };
-    
+
     const handleSaveMagazzinoItem = async (e) => {
         e.preventDefault();
         if (!profile?.family_group) return;
@@ -282,7 +282,7 @@ export default function Pagina7_GestioneFarmaci() {
             alert(`Errore: ${err.message}`);
         }
     };
-    
+
     const handleDeleteMagazzinoItem = async (itemId) => {
         if (window.confirm("Sei sicuro di voler eliminare questo farmaco?")) {
             try {
@@ -315,7 +315,7 @@ export default function Pagina7_GestioneFarmaci() {
                 return supabase.from('ArchivioFarmaci').update(fieldsToUpdate).eq('id', id);
             });
             await Promise.all(updates);
-            
+
             // Aggiorna lo stato locale con i nuovi dati salvati
             setArchivioFarmaci(prev => prev.map(farmaco => editedFarmaci[farmaco.id] || farmaco));
             setEditedFarmaci({}); // Resetta le modifiche in sospeso
@@ -370,12 +370,12 @@ export default function Pagina7_GestioneFarmaci() {
             isNotificationEnabled: false, sendBefore: 1, selectedEmails: []
         });
     };
-    
+
     const handleSelectSlot = ({ start }) => {
         setModalData({ date: start });
         resetEventForm(start);
     };
-    
+
     const handleSelectEvent = (event) => {
         if (event.repeat_pattern) {
             setShowRecurrenceModal(true);
@@ -384,7 +384,7 @@ export default function Pagina7_GestioneFarmaci() {
             openEventModal(event);
         }
     };
-    
+
     const openEventModal = (event, isRecurring = false) => {
         setModalData(event);
         setFormData({
@@ -403,7 +403,7 @@ export default function Pagina7_GestioneFarmaci() {
             repeatPattern: isRecurring ? event.repeat_pattern : 'nessuna',
             repeatEndDate: isRecurring ? format(
                 events.filter(e => e.recurrence_id === event.recurrence_id)
-                    .sort((a, b) => b.end - a.end)[0]?.end || event.end, 
+                    .sort((a, b) => b.end - a.end)[0]?.end || event.end,
                 'yyyy-MM-dd'
             ) : ''
         });
@@ -412,7 +412,7 @@ export default function Pagina7_GestioneFarmaci() {
 
     const handleDeleteEvent = async (mode = 'single') => {
         if (!modalData?.id) return;
-        
+
         const { error } = mode === 'all' && modalData.recurrence_id
             ? await supabase.from('events_farmaci').delete().eq('recurrence_id', modalData.recurrence_id)
             : await supabase.from('events_farmaci').delete().eq('id', modalData.id);
@@ -426,7 +426,7 @@ export default function Pagina7_GestioneFarmaci() {
         setModalData(null);
         setShowRecurrenceModal(false);
     };
-    
+
     const eventStyleGetter = (event) => ({
         style: {
             backgroundColor: categoryColors['FARMACO'],
@@ -436,58 +436,72 @@ export default function Pagina7_GestioneFarmaci() {
     });
 
     return (
-        <div className="archivio-container">
-            <h1 className="title">💊 Gestione Farmaci</h1>
-            <div className="button-container">
-                <button className="main-menu-btn" onClick={() => navigate('/main-menu')}>
-                    Torna al Menu Principale
-                </button>
-                <button className="new-event-btn" onClick={() => { setModalData({ date: new Date() }); resetEventForm(); }}>
-                    Nuovo Appuntamento Farmaco
-                </button>
-                <button className="new-event-btn" onClick={() => { setShowMagazzinoModal(true); setMagazzinoFormData({ id: null, nome_farmaco: '', dosaggio: '', istruzioni: '', quantita_attuale: 0, quantita_scortaminima: 0, giorni_ricezione: '' }); }}>
-                    Gestisci Farmaci in Magazzino
-                </button>
-                <button className="new-event-btn" onClick={() => { setShowArchivioModal(true); }}>
-                    Visualizza Magazzino
-                </button>
+        <div className="app-layout">
+            <div className="header">
+                <h1>💊 Gestione Farmaci</h1>
+                <p>Gestisci l'archivio dei farmaci e gli appuntamenti per l'assunzione!</p>
+                <div className="tab-buttons">
+                    <button onClick={() => navigate('/main-menu')} className="btn-secondary">
+                        Torna al Menu Principale
+                    </button>
+                    <button className="btn-add" onClick={() => { setModalData({ date: new Date() }); resetEventForm(); }}>
+                        Nuovo Appuntamento
+                    </button>
+                    <button className="btn-add" onClick={() => { setShowMagazzinoModal(true); setMagazzinoFormData({ id: null, nome_farmaco: '', dosaggio: '', istruzioni: '', quantita_attuale: 0, quantita_scortaminima: 0, giorni_ricezione: '' }); }}>
+                        Aggiungi Farmaco
+                    </button>
+                    <button className="btn-primary" onClick={() => { setShowArchivioModal(true); }}>
+                        Visualizza Magazzino
+                    </button>
+                </div>
             </div>
-            
-            <div className="calendar-wrapper">
-                {profile ? (
-                    <Calendar
-                        localizer={localizer} events={events} culture="it"
-                        startAccessor="start" endAccessor="end" style={{ height: 600 }} selectable
-                        views={["month", "week", "day", "agenda"]} view={view} onView={setView}
-                        date={currentDate} onNavigate={setCurrentDate}
-                        onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent}
-                        eventPropGetter={eventStyleGetter}
-                        components={{ event: CustomEventContent, toolbar: CustomToolbar }}
-                        messages={{
-                            today: 'Oggi', previous: 'Precedente', next: 'Successivo',
-                            month: 'Mese', week: 'Settimana', day: 'Giorno', agenda: 'Agenda'
-                        }}
-                    />
-                ) : (
-                    <p>Caricamento del profilo in corso...</p>
-                )}
+
+            <div className="main-content">
+                <div className="info-box">
+                    <h2>Gestisci gli appuntamenti</h2>
+                    <p>Clicca su una data o su un appuntamento per gestirlo.</p>
+                </div>
+                <div className="calendar-wrapper">
+                    {profile ? (
+                        <Calendar
+                            localizer={localizer} events={events} culture="it"
+                            startAccessor="start" endAccessor="end" style={{ height: 600 }} selectable
+                            views={["month", "week", "day", "agenda"]} view={view} onView={setView}
+                            date={currentDate} onNavigate={setCurrentDate}
+                            onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent}
+                            eventPropGetter={eventStyleGetter}
+                            components={{ event: CustomEventContent, toolbar: CustomToolbar }}
+                            messages={{
+                                today: 'Oggi', previous: 'Precedente', next: 'Successivo',
+                                month: 'Mese', week: 'Settimana', day: 'Giorno', agenda: 'Agenda'
+                            }}
+                        />
+                    ) : (
+                        <p>Caricamento del profilo in corso...</p>
+                    )}
+                </div>
+            </div>
+            <div className="footer">
+                <p>&copy; 2024 Gruppo Famiglia. Tutti i diritti riservati.</p>
             </div>
 
             {/* Modals */}
-            
+
             {/* Recurrence Modal */}
             {showRecurrenceModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content recurrence-modal">
-                        <h2>Gestisci Appuntamento Ricorrente</h2>
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h2>Gestisci Appuntamento Ricorrente</h2>
+                            <button className="modal-close-btn" onClick={() => { setShowRecurrenceModal(false); setModalData(null); }}>&times;</button>
+                        </div>
                         <p>Questo appuntamento fa parte di una serie. Come vuoi procedere?</p>
                         <div className="modal-actions">
-                            <button className="btn btn-save" onClick={() => openEventModal(modalData, false)}>Modifica Solo Questo</button>
-                            <button className="btn btn-save" onClick={() => openEventModal(modalData, true)}>Modifica Tutta la Serie</button>
-                            <button className="btn btn-delete" onClick={() => handleDeleteEvent('single')}>Elimina Solo Questo</button>
-                            <button className="btn btn-delete" onClick={() => handleDeleteEvent('all')}>Elimina Tutta la Serie</button>
+                            <button className="btn-primary" onClick={() => openEventModal(modalData, false)}>Modifica Solo Questo</button>
+                            <button className="btn-primary" onClick={() => openEventModal(modalData, true)}>Modifica Tutta la Serie</button>
+                            <button className="btn-delete" onClick={() => handleDeleteEvent('single')}>Elimina Solo Questo</button>
+                            <button className="btn-delete" onClick={() => handleDeleteEvent('all')}>Elimina Tutta la Serie</button>
                         </div>
-                        <button className="modal-close-btn" onClick={() => { setShowRecurrenceModal(false); setModalData(null); }}>&times;</button>
                     </div>
                 </div>
             )}
@@ -504,7 +518,7 @@ export default function Pagina7_GestioneFarmaci() {
                             <div className="modal-body">
                                 <div className="form-group">
                                     <label>Farmaco:</label>
-                                    <select value={formData.nome_farmaco} onChange={(e) => updateFormData({ nome_farmaco: e.target.value })} required>
+                                    <select className="search-input" value={formData.nome_farmaco} onChange={(e) => updateFormData({ nome_farmaco: e.target.value })} required>
                                         <option value="">Seleziona un farmaco...</option>
                                         {archivioFarmaci.map(farmaco => (
                                             <option key={farmaco.id} value={farmaco.nome_farmaco}>
@@ -515,19 +529,19 @@ export default function Pagina7_GestioneFarmaci() {
                                 </div>
                                 <div className="form-group">
                                     <label>Quantità:</label>
-                                    <input type="number" step="0.01" value={formData.quantita} onChange={(e) => updateFormData({ quantita: parseFloat(e.target.value) })} required />
+                                    <input type="number" step="0.01" className="search-input" value={formData.quantita} onChange={(e) => updateFormData({ quantita: parseFloat(e.target.value) })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Data:</label>
-                                    <input type="date" value={formData.date} onChange={(e) => updateFormData({ date: e.target.value })} required />
+                                    <input type="date" className="search-input" value={formData.date} onChange={(e) => updateFormData({ date: e.target.value })} required />
                                 </div>
-                                <div className="form-group form-group-time">
+                                <div className="form-group">
                                     <label>Ora Assunzione:</label>
-                                    <input type="time" value={formData.startTime} onChange={(e) => updateFormData({ startTime: e.target.value })} required />
+                                    <input type="time" className="search-input" value={formData.startTime} onChange={(e) => updateFormData({ startTime: e.target.value })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Frequenza di Ripetizione:</label>
-                                    <select value={formData.repeatPattern} onChange={(e) => updateFormData({ repeatPattern: e.target.value })}>
+                                    <select className="search-input" value={formData.repeatPattern} onChange={(e) => updateFormData({ repeatPattern: e.target.value })}>
                                         <option value="nessuna">Nessuna</option>
                                         <option value="daily">Giornaliera</option>
                                         <option value="weekly">Settimanale</option>
@@ -538,7 +552,7 @@ export default function Pagina7_GestioneFarmaci() {
                                 {formData.repeatPattern !== 'nessuna' && (
                                     <div className="form-group">
                                         <label>Data di Fine Ripetizione:</label>
-                                        <input type="date" value={formData.repeatEndDate} onChange={(e) => updateFormData({ repeatEndDate: e.target.value })} required />
+                                        <input type="date" className="search-input" value={formData.repeatEndDate} onChange={(e) => updateFormData({ repeatEndDate: e.target.value })} required />
                                     </div>
                                 )}
                                 <div className="form-group notification-toggle">
@@ -551,9 +565,9 @@ export default function Pagina7_GestioneFarmaci() {
                             </div>
                             <div className="modal-footer">
                                 {modalData?.id && (
-                                    <button type="button" className="btn btn-delete" onClick={() => handleDeleteEvent()}>Elimina</button>
+                                    <button type="button" className="btn-delete" onClick={() => handleDeleteEvent()}>Elimina</button>
                                 )}
-                                <button type="submit" className="btn btn-save" disabled={!profile}>Salva</button>
+                                <button type="submit" className="btn-primary" disabled={!profile}>Salva</button>
                             </div>
                         </form>
                     </div>
@@ -563,7 +577,7 @@ export default function Pagina7_GestioneFarmaci() {
             {/* Magazzino Modal (Inserisci/Modifica Farmaco) */}
             {showMagazzinoModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content wider-modal-content">
+                    <div className="modal-content">
                         <div className="modal-header">
                             <h2>{magazzinoFormData.id ? 'Modifica Farmaco' : 'Aggiungi Nuovo Farmaco'}</h2>
                             <button className="modal-close-btn" onClick={() => setShowMagazzinoModal(false)}>&times;</button>
@@ -572,33 +586,33 @@ export default function Pagina7_GestioneFarmaci() {
                             <div className="modal-body">
                                 <div className="form-group">
                                     <label>Nome Farmaco:</label>
-                                    <input type="text" value={magazzinoFormData.nome_farmaco} onChange={(e) => updateMagazzinoFormData({ nome_farmaco: e.target.value })} required />
+                                    <input type="text" className="search-input" value={magazzinoFormData.nome_farmaco} onChange={(e) => updateMagazzinoFormData({ nome_farmaco: e.target.value })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Dosaggio:</label>
-                                    <input type="text" value={magazzinoFormData.dosaggio} onChange={(e) => updateMagazzinoFormData({ dosaggio: e.target.value })} />
+                                    <input type="text" className="search-input" value={magazzinoFormData.dosaggio} onChange={(e) => updateMagazzinoFormData({ dosaggio: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Istruzioni:</label>
-                                    <textarea value={magazzinoFormData.istruzioni} onChange={(e) => updateMagazzinoFormData({ istruzioni: e.target.value })} />
+                                    <textarea className="search-input" value={magazzinoFormData.istruzioni} onChange={(e) => updateMagazzinoFormData({ istruzioni: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Quantità Attuale:</label>
-                                    <input type="number" step="0.01" value={magazzinoFormData.quantita_attuale} onChange={(e) => updateMagazzinoFormData({ quantita_attuale: parseFloat(e.target.value) })} required />
+                                    <input type="number" step="0.01" className="search-input" value={magazzinoFormData.quantita_attuale} onChange={(e) => updateMagazzinoFormData({ quantita_attuale: parseFloat(e.target.value) })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Quantità Scorta Minima:</label>
-                                    <input type="number" step="0.01" value={magazzinoFormData.quantita_scortaminima} onChange={(e) => updateMagazzinoFormData({ quantita_scortaminima: parseFloat(e.target.value) })} />
+                                    <input type="number" step="0.01" className="search-input" value={magazzinoFormData.quantita_scortaminima} onChange={(e) => updateMagazzinoFormData({ quantita_scortaminima: parseFloat(e.target.value) })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Giorni di Ricezione:</label>
-                                    <input type="text" value={magazzinoFormData.giorni_ricezione} onChange={(e) => updateMagazzinoFormData({ giorni_ricezione: e.target.value })} />
+                                    <input type="text" className="search-input" value={magazzinoFormData.giorni_ricezione} onChange={(e) => updateMagazzinoFormData({ giorni_ricezione: e.target.value })} />
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="submit" className="btn btn-save">Salva</button>
+                                <button type="submit" className="btn-primary">Salva</button>
                                 {magazzinoFormData.id && (
-                                    <button type="button" className="btn btn-delete" onClick={() => handleDeleteMagazzinoItem(magazzinoFormData.id)}>Elimina</button>
+                                    <button type="button" className="btn-delete" onClick={() => handleDeleteMagazzinoItem(magazzinoFormData.id)}>Elimina</button>
                                 )}
                             </div>
                         </form>
@@ -609,7 +623,7 @@ export default function Pagina7_GestioneFarmaci() {
             {/* Nuovo Modale per l'aggiornamento dello stock */}
             {showUpdateStockModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content small-modal">
+                    <div className="modal-content">
                         <div className="modal-header">
                             <h2>Aggiorna Stock</h2>
                             <button className="modal-close-btn" onClick={() => setShowUpdateStockModal(false)}>&times;</button>
@@ -618,27 +632,27 @@ export default function Pagina7_GestioneFarmaci() {
                             <div className="modal-body">
                                 <div className="form-group">
                                     <label>Nuova Quantità:</label>
-                                    <input type="number" step="0.01" value={updateStockData.quantita_attuale} onChange={(e) => updateUpdateStockData({ quantita_attuale: parseFloat(e.target.value) })} required />
+                                    <input type="number" step="0.01" className="search-input" value={updateStockData.quantita_attuale} onChange={(e) => updateUpdateStockData({ quantita_attuale: parseFloat(e.target.value) })} required />
                                 </div>
                             </div>
                             <div className="modal-footer">
-                                <button type="submit" className="btn btn-save">Salva</button>
+                                <button type="submit" className="btn-primary">Salva</button>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
-            
+
             {/* Archivio completo in tabella editabile */}
             {showArchivioModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content wider-modal-content">
+                    <div className="modal-content">
                         <div className="modal-header">
                             <h2>Archivio Magazzino Farmaci</h2>
                             <button className="modal-close-btn" onClick={() => setShowArchivioModal(false)}>&times;</button>
                         </div>
-                        <div className="modal-body table-container">
-                            <table className="archivio-table">
+                        <div className="modal-body shopping-table-container">
+                            <table className="shopping-table">
                                 <thead>
                                     <tr>
                                         <th>Nome</th>
@@ -682,7 +696,7 @@ export default function Pagina7_GestioneFarmaci() {
                                                 />
                                             </td>
                                             <td>
-                                                <button className="icon-btn delete-btn" onClick={() => handleDeleteMagazzinoItem(item.id)}>
+                                                <button className="btn-delete" onClick={() => handleDeleteMagazzinoItem(item.id)}>
                                                     <FaTrash /> Elimina
                                                 </button>
                                             </td>
@@ -692,7 +706,7 @@ export default function Pagina7_GestioneFarmaci() {
                             </table>
                         </div>
                         <div className="modal-footer">
-                            <button type="button" className="btn btn-save" onClick={handleSaveAllEdits}>Salva Modifiche</button>
+                            <button type="button" className="btn-primary" onClick={handleSaveAllEdits}>Salva Modifiche</button>
                         </div>
                     </div>
                 </div>

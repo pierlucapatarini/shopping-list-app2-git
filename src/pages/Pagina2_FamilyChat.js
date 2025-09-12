@@ -280,13 +280,20 @@ function FamilyChat() {
         setOpenFileOptionsId(null);
     };
 
-    const handleArchivia = (e, file) => {
-        e.stopPropagation();
-        setOpenFileOptionsId(null);
-        navigate('/pagina8-archivio-documenti', {
-            state: { file_url: file.file_url, file_name: file.file_name, file_type: file.file_type }
-        });
-    };
+    // In Pagina2_FamilyChat.js, all'interno della funzione `handleArchivia`
+
+const handleArchivia = (e, file) => {
+    e.stopPropagation();
+    setOpenFileOptionsId(null);
+    navigate('/pagina8-archivio-documenti', {
+        state: { 
+            fileToArchive: {
+                fileName: file.file_name, 
+                fileUrl: file.file_url
+            } 
+        }
+    });
+};
 
     const renderMessageContent = (msg) => {
         const hasFile = msg.file_url && msg.file_name;

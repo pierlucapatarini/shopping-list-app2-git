@@ -6,7 +6,7 @@ import it from 'date-fns/locale/it';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
-import '../styles/archivio.css';
+import '../styles/MainStyle.css'; // Sostituito l'import con il nuovo file
 
 const locales = { it };
 const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales });
@@ -298,50 +298,65 @@ export default function Pagina6() {
     });
 
     return (
-        <div className="archivio-container">
-            <h1 className="title">📅 Calendario Famiglia</h1>
-            <div className="button-container">
-                <button className="main-menu-btn" onClick={() => navigate('/main-menu')}>
-                    Torna al Menu Principale
-                </button>
-                <button className="new-event-btn" onClick={() => { setModalData({ date: new Date() }); resetForm(); }}>
-                    Nuovo Evento
+        <div className="app-layout">
+            <div className="header">
+                <h1>📅 Calendario Famiglia</h1>
+                <p>Organizza gli appuntamenti del tuo gruppo famiglia!</p>
+                <button onClick={() => navigate('/main-menu')} className="btn-secondary">
+                    Menu Principale
                 </button>
             </div>
             
-            <div className="calendar-wrapper">
-                {profile ? (
-                    <Calendar
-                        localizer={localizer} events={events} culture="it"
-                        startAccessor="start" endAccessor="end" style={{ height: 600 }} selectable
-                        views={["month", "week", "day", "agenda"]} view={view} onView={setView}
-                        date={currentDate} onNavigate={setCurrentDate}
-                        onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent}
-                        eventPropGetter={eventStyleGetter}
-                        components={{ event: CustomEventContent, toolbar: CustomToolbar }}
-                        messages={{
-                            today: 'Oggi', previous: 'Precedente', next: 'Successivo',
-                            month: 'Mese', week: 'Settimana', day: 'Giorno', agenda: 'Agenda'
-                        }}
-                    />
-                ) : (
-                    <p>Caricamento del profilo in corso...</p>
-                )}
+            <div className="main-content">
+                <div className="info-box">
+                    <h2>Gestisci gli Eventi</h2>
+                    <p>Clicca su una data o su un evento per gestirlo.</p>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                    <button className="btn-primary" onClick={() => { setModalData({ date: new Date() }); resetForm(); }}>
+                        + Nuovo Evento
+                    </button>
+                </div>
+                <div className="calendar-wrapper">
+                    {profile ? (
+                        <Calendar
+                            localizer={localizer} events={events} culture="it"
+                            startAccessor="start" endAccessor="end" style={{ height: 600 }} selectable
+                            views={["month", "week", "day", "agenda"]} view={view} onView={setView}
+                            date={currentDate} onNavigate={setCurrentDate}
+                            onSelectSlot={handleSelectSlot} onSelectEvent={handleSelectEvent}
+                            eventPropGetter={eventStyleGetter}
+                            components={{ event: CustomEventContent, toolbar: CustomToolbar }}
+                            messages={{
+                                today: 'Oggi', previous: 'Precedente', next: 'Successivo',
+                                month: 'Mese', week: 'Settimana', day: 'Giorno', agenda: 'Agenda'
+                            }}
+                        />
+                    ) : (
+                        <p>Caricamento del profilo in corso...</p>
+                    )}
+                </div>
             </div>
+            <div className="footer">
+                <p>&copy; 2024 Gruppo Famiglia. Tutti i diritti riservati.</p>
+            </div>
+
 
             {/* Recurrence Modal */}
             {showRecurrenceModal && (
                 <div className="modal-overlay">
-                    <div className="modal-content recurrence-modal">
-                        <h2>Gestisci Evento Ricorrente</h2>
+                    <div className="modal-content">
+                        <div className="modal-header">
+                            <h2>Gestisci Evento Ricorrente</h2>
+                            <button className="modal-close-btn" onClick={() => { setShowRecurrenceModal(false); setModalData(null); }}>&times;</button>
+                        </div>
                         <p>Questo evento fa parte di una serie. Come vuoi procedere?</p>
                         <div className="modal-actions">
-                            <button className="btn btn-save" onClick={() => openEventModal(modalData, false)}>Modifica Solo Questo</button>
-                            <button className="btn btn-save" onClick={() => openEventModal(modalData, true)}>Modifica Tutta la Serie</button>
-                            <button className="btn btn-delete" onClick={() => handleDeleteEvent('single')}>Elimina Solo Questo</button>
-                            <button className="btn btn-delete" onClick={() => handleDeleteEvent('all')}>Elimina Tutta la Serie</button>
+                            <button className="btn-primary" onClick={() => openEventModal(modalData, false)}>Modifica Solo Questo</button>
+                            <button className="btn-primary" onClick={() => openEventModal(modalData, true)}>Modifica Tutta la Serie</button>
+                            <button className="btn-delete" onClick={() => handleDeleteEvent('single')}>Elimina Solo Questo</button>
+                            <button className="btn-delete" onClick={() => handleDeleteEvent('all')}>Elimina Tutta la Serie</button>
                         </div>
-                        <button className="modal-close-btn" onClick={() => { setShowRecurrenceModal(false); setModalData(null); }}>&times;</button>
                     </div>
                 </div>
             )}
@@ -358,27 +373,27 @@ export default function Pagina6() {
                             <div className="modal-body">
                                 <div className="form-group">
                                     <label>Titolo:</label>
-                                    <input type="text" value={formData.title} onChange={(e) => updateFormData({ title: e.target.value })} required />
+                                    <input type="text" className="search-input" value={formData.title} onChange={(e) => updateFormData({ title: e.target.value })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Descrizione:</label>
-                                    <textarea value={formData.description} onChange={(e) => updateFormData({ description: e.target.value })} />
+                                    <textarea className="search-input" value={formData.description} onChange={(e) => updateFormData({ description: e.target.value })} />
                                 </div>
                                 <div className="form-group">
                                     <label>Data:</label>
-                                    <input type="date" value={formData.date} onChange={(e) => updateFormData({ date: e.target.value })} required />
+                                    <input type="date" className="search-input" value={formData.date} onChange={(e) => updateFormData({ date: e.target.value })} required />
                                 </div>
                                 <div className="form-group form-group-time">
                                     <label>Ora Inizio:</label>
-                                    <input type="time" value={formData.startTime} onChange={(e) => updateFormData({ startTime: e.target.value })} required />
+                                    <input type="time" className="search-input" value={formData.startTime} onChange={(e) => updateFormData({ startTime: e.target.value })} required />
                                 </div>
                                 <div className="form-group form-group-time">
                                     <label>Ora Fine:</label>
-                                    <input type="time" value={formData.endTime} onChange={(e) => updateFormData({ endTime: e.target.value })} required />
+                                    <input type="time" className="search-input" value={formData.endTime} onChange={(e) => updateFormData({ endTime: e.target.value })} required />
                                 </div>
                                 <div className="form-group">
                                     <label>Categoria:</label>
-                                    <select value={formData.category} onChange={(e) => updateFormData({ category: e.target.value })}>
+                                    <select className="search-input" value={formData.category} onChange={(e) => updateFormData({ category: e.target.value })}>
                                         {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
                                     </select>
                                 </div>
@@ -387,7 +402,7 @@ export default function Pagina6() {
                                     <>
                                         <div className="form-group">
                                             <label>Ripetizione:</label>
-                                            <select value={formData.repeatPattern} onChange={(e) => updateFormData({ repeatPattern: e.target.value })}>
+                                            <select className="search-input" value={formData.repeatPattern} onChange={(e) => updateFormData({ repeatPattern: e.target.value })}>
                                                 <option value="nessuna">Nessuna</option>
                                                 <option value="daily">Giornaliera</option>
                                                 <option value="weekly">Settimanale</option>
@@ -398,7 +413,7 @@ export default function Pagina6() {
                                         {formData.repeatPattern !== 'nessuna' && (
                                             <div className="form-group">
                                                 <label>Fine Ripetizione:</label>
-                                                <input type="date" value={formData.repeatEndDate} 
+                                                <input type="date" className="search-input" value={formData.repeatEndDate} 
                                                     onChange={(e) => updateFormData({ repeatEndDate: e.target.value })} required />
                                             </div>
                                         )}
@@ -417,21 +432,20 @@ export default function Pagina6() {
                                     <div className="notification-container">
                                         <div className="form-group">
                                             <label>Notifica (ore prima):</label>
-                                            <input type="number" min="1" value={formData.sendBefore}
+                                            <input type="number" min="1" className="search-input" value={formData.sendBefore}
                                                 onChange={(e) => updateFormData({ sendBefore: parseInt(e.target.value) })} />
                                         </div>
                                         <div className="form-group">
                                             <label>Invia notifica a:</label>
                                             <div className="family-users-list">
                                                 {familyUsers.map(user => (
-                                                    <label key={user.id} className="family-user-box">
-                                                        <input type="checkbox" checked={formData.selectedEmails.includes(user.email)}
+                                                    <label key={user.id} className="checkbox-label">
+                                                        <input type="checkbox" className="custom-checkbox" checked={formData.selectedEmails.includes(user.email)}
                                                             onChange={() => updateFormData({
                                                                 selectedEmails: formData.selectedEmails.includes(user.email)
                                                                     ? formData.selectedEmails.filter(e => e !== user.email)
                                                                     : [...formData.selectedEmails, user.email]
                                                             })} />
-                                                        <img src={user.avatar || "/default-avatar.png"} alt="avatar" className="family-avatar" />
                                                         <span className="family-username">{user.username}</span>
                                                     </label>
                                                 ))}
@@ -442,9 +456,9 @@ export default function Pagina6() {
                             </div>
                             <div className="modal-footer">
                                 {modalData?.id && (
-                                    <button type="button" className="btn btn-delete" onClick={() => handleDeleteEvent()}>Elimina</button>
+                                    <button type="button" className="btn-delete" onClick={() => handleDeleteEvent()}>Elimina</button>
                                 )}
-                                <button type="submit" className="btn btn-save" disabled={!profile}>Salva</button>
+                                <button type="submit" className="btn-primary" disabled={!profile}>Salva</button>
                             </div>
                         </form>
                     </div>

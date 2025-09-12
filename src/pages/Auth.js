@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { supabase } from '../supabaseClient';
 import { useNavigate } from 'react-router-dom';
+import '../styles/MainStyle.css';
 
 function Auth() {
   const [loading, setLoading] = useState(false);
@@ -9,7 +10,7 @@ function Auth() {
   const [username, setUsername] = useState('');
   const [familyGroup, setFamilyGroup] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
-  const [message, setMessage] = useState(null); // Nuovo stato per i messaggi
+  const [message, setMessage] = useState(null);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -22,6 +23,7 @@ function Auth() {
       setMessage({ type: 'error', text: error.message });
     } else {
       setMessage({ type: 'success', text: 'Accesso riuscito!' });
+      navigate('/main-menu');
     }
     setLoading(false);
   };
@@ -42,132 +44,99 @@ function Auth() {
     if (error) {
       setMessage({ type: 'error', text: error.message });
     } else {
-      setMessage({ type: 'success', text: 'Registrazione completata , conferma via Mail e ritorna per accedere .' });
+      setMessage({ type: 'success', text: 'Registrazione riuscita! Controlla la tua email per confermare.' });
       setIsRegistering(false);
     }
     setLoading(false);
   };
 
-  const buttonStyle = {
-    padding: '12px 24px',
-    borderRadius: '8px',
-    border: 'none',
-    cursor: 'pointer',
-    fontSize: '1em',
-    fontWeight: 'bold',
-    boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-    transition: 'background-color 0.3s ease',
-  };
-
-  const messageStyle = {
-    padding: '10px 15px',
-    borderRadius: '8px',
-    marginBottom: '15px',
-    textAlign: 'center',
-    fontWeight: 'bold',
-  };
-
   return (
-    <div style={{ padding: '20px', backgroundColor: '#f0f4f8', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '15px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', maxWidth: '400px', width: '90%', textAlign: 'center' }}>
-        <h1 style={{ color: '#333', marginBottom: '30px' }}>
-          {isRegistering ? 'PaginaDiRegistrazione' : 'Accedi'}
-        </h1>
-
+    <div className="app-layout auth-container">
+      <div className="form-card">
+        <h1 className="auth-title">{isRegistering ? 'Crea un Account' : 'Accedi'}</h1>
+        
         {message && (
-          <div style={{ ...messageStyle, backgroundColor: message.type === 'error' ? '#ffebee' : '#e8f5e9', color: message.type === 'error' ? '#c62828' : '#2e7d32' }}>
+          <div className={`info-box ${message.type === 'error' ? 'red' : ''}`}>
             {message.text}
           </div>
         )}
 
         {isRegistering ? (
-          <form onSubmit={handleRegister}>
-
-
-
-
-            <input
-              type="email"
-              placeholder="La tua email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-
-
-
-
-
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-
-
-
-            <input
-              type="text"
-              placeholder="Nome Utente"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-
-
-
-
-
-
-
-
-
-
-            <input
-              type="text"
-              placeholder="Gruppo Famiglia"
-              value={familyGroup}
-              onChange={(e) => setFamilyGroup(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-
-
-            <button type="submit" disabled={loading} style={{ ...buttonStyle, width: '100%', backgroundColor: '#2196F3', color: 'white' }}>
-              {loading ? 'Caricamento...' : 'ConfermaRegistrati'}
+          <form onSubmit={handleRegister} className="auth-form">
+            <div className="form-group">
+                <input
+                    type="email"
+                    placeholder="La tua email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <div className="form-group">
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <div className="form-group">
+                <input
+                    type="text"
+                    placeholder="Nome Utente"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <div className="form-group">
+                <input
+                    type="text"
+                    placeholder="Gruppo Famiglia (Es. Rossi)"
+                    value={familyGroup}
+                    onChange={(e) => setFamilyGroup(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary auth-button">
+              {loading ? 'Caricamento...' : 'Conferma Registrazione'}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleLogin}>
-            <input
-              type="email"
-              placeholder="La tua email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '10px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-            <input
-              type="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={{ width: '100%', padding: '12px', marginBottom: '20px', borderRadius: '8px', border: '1px solid #ccc' }}
-              required
-            />
-            <button type="submit" disabled={loading} style={{ ...buttonStyle, width: '100%', backgroundColor: '#4CAF50', color: 'white' }}>
+          <form onSubmit={handleLogin} className="auth-form">
+            <div className="form-group">
+                <input
+                    type="email"
+                    placeholder="La tua email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <div className="form-group">
+                <input
+                    type="password"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="form-input"
+                    required
+                />
+            </div>
+            <button type="submit" disabled={loading} className="btn-primary auth-button">
               {loading ? 'Caricamento...' : 'Accedi'}
             </button>
           </form>
         )}
 
         <button
-          style={{ ...buttonStyle, marginTop: '20px', backgroundColor: 'transparent', color: '#555', boxShadow: 'none' }}
+          className="btn-link"
           onClick={() => setIsRegistering(!isRegistering)}
         >
           {isRegistering ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati'}
