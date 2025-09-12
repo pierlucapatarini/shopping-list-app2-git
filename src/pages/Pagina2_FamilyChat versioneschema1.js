@@ -142,7 +142,7 @@ function FamilyChat() {
     <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', fontFamily: 'Arial, sans-serif' }}>
       {/* Header */}
       <div style={{ padding: '15px', backgroundColor: '#075E54', color: 'white' }}>
-        <h1>💬 Patarini's13 Social Chat</h1>
+        <h1>💬 Patarini's143 Social Chat</h1>
         <div>Realtime: {realtimeStatus}</div>
       </div>
 
