@@ -19,7 +19,21 @@ body {
   background-color: var(--background-color);
   color: var(--text-color);
   line-height: 1.6;
+  overscroll-behavior-y: contain;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 .app-layout {
   display: flex;

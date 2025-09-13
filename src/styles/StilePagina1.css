@@ -2,18 +2,18 @@
 .app-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh; /* Usa altezza fissa per il layout */
+  height: 100vh;
   max-width: 800px;
   margin: 0 auto;
   background-color: var(--surface-color);
   box-shadow: var(--shadow);
   border-radius: var(--border-radius);
-  overflow: hidden; /* Blocca lo scroll del contenitore principale */
+  overflow: hidden;
 }
 
 /* Header fisso */
 .header {
-  position: sticky; /* Rende l'header fisso in alto */
+  position: sticky;
   top: 0;
   z-index: 20;
   background-color: var(--primary-color);
@@ -28,15 +28,15 @@
 
 /* Contenuto scorrevole: qui avviene lo scroll */
 .scrollable-content {
-  flex-grow: 1; /* Occupa tutto lo spazio rimanente */
-  overflow-y: auto; /* Abilita lo scrolling verticale */
-  -webkit-overflow-scrolling: touch; /* Migliora lo scrolling su iOS */
+  flex-grow: 1;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 16px;
 }
 
 /* Footer fisso */
 .footer {
-  position: sticky; /* Rende il footer fisso in basso */
+  position: sticky;
   bottom: 0;
   z-index: 20;
   background-color: var(--surface-color);
@@ -44,4 +44,93 @@
   padding: 12px 16px;
   text-align: center;
   box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Layout mobile */
+.tab-buttons {
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tab-button {
+  padding: 8px 14px;
+  font-size: 0.9em;
+}
+
+.input-group {
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  padding: 10px;
+}
+
+/* Modifiche alla tabella */
+.shopping-table-container {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.shopping-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shopping-table thead th {
+  padding: 8px;
+  font-size: 0.9em;
+  text-align: left;
+}
+
+.shopping-table tbody td {
+  padding: 8px;
+  font-size: 0.9em;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Larghezza della colonna 'Articolo' raddoppiata */
+.shopping-table .articolo-column-header,
+.shopping-table .articolo-column-cell {
+  width: 40%;
+}
+
+/* Per le icone e le colonne strette */
+.shopping-table th:nth-child(4), /* 'Preso' */
+.shopping-table td:nth-child(4),
+.shopping-table th:nth-child(5), /* 'Elimina' */
+.shopping-table td:nth-child(5) {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Bottone per le icone */
+.btn-icon {
+  background: none;
+  border: none;
+  font-size: 1.2em;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Altri stili */
+.small-input {
+  width: 50px;
+  padding: 6px;
+}
+
+.other-prices-dropdown {
+  font-size: 0.8em;
+}
+
+.taken {
+  background-color: #e8f5e9;
+  text-decoration: line-through;
+  color: #757575;
+}
+
+.sort-header {
+  cursor: pointer;
+  user-select: none;
 }

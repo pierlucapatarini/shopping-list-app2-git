@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import "../styles/StilePagina1.css"; // Importa il nuovo file
-import { FaBars } from 'react-icons/fa'; 
+import "../styles/StilePagina1.css";
+import { FaBars } from 'react-icons/fa';
 
 const SUPERMARKETS = [
   { key: "esselunga", label: "Esselunga", priceField: "prezzo_esselunga", corsiaField: "corsia_esselunga", icon: "🛒" },
@@ -68,21 +68,21 @@ export default function Pagina1_ShoppingList() {
       const q = searchQuery.trim().toLowerCase();
       return preferiti.filter(p => p.articolo.toLowerCase().includes(q));
     }
-    
+
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
-    
+
     const filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
-    
+
     if (mode === "vocale") {
-      return filteredProdotti.filter(p => 
-        p.articolo.toLowerCase().includes(q) || 
+      return filteredProdotti.filter(p =>
+        p.articolo.toLowerCase().includes(q) ||
         (p.descrizione || "").toLowerCase().includes(q)
       );
     }
-    
-    return filteredProdotti.filter(p => 
-      p.articolo.toLowerCase().includes(q) || 
+
+    return filteredProdotti.filter(p =>
+      p.articolo.toLowerCase().includes(q) ||
       (p.descrizione || "").toLowerCase().includes(q)
     );
   }, [prodotti, searchQuery, mode, familyGroup]);
@@ -95,7 +95,7 @@ export default function Pagina1_ShoppingList() {
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const recognition = new SpeechRecognition();
-    
+
     recognition.lang = 'it-IT';
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
@@ -123,11 +123,11 @@ export default function Pagina1_ShoppingList() {
     recognition.start();
   };
 
-async function addProductToShopping(prod) {
+  async function addProductToShopping(prod) {
     if (!familyGroup || !userProfile) return;
     const sup = SUPERMARKETS.find(s => s.key === selectedSupermarket);
     const price = prod?.[sup?.priceField] ?? prod?.prezzo ?? 0;
-    
+
     const categoryObject = findCategory(prod.categoria_id);
     const categoriaName = categoryObject?.name || null;
 
@@ -154,9 +154,9 @@ async function addProductToShopping(prod) {
 
     const { data } = await supabase.from("shopping_items").insert([newItem]).select();
     if (data) setShoppingItems(s => [...s, ...data]);
-    
+
     if (mode !== "vocale") setSearchQuery("");
-}
+  }
 
   async function handleUpdateShoppingItem(id, patch) {
     const { data } = await supabase.from("shopping_items").update(patch).eq("id", id).select();
@@ -173,11 +173,11 @@ async function addProductToShopping(prod) {
     setShoppingItems([]);
   }
 
-async function finishShopping() {
+  async function finishShopping() {
     const taken = shoppingItems.filter(i => i.fatto);
-    if (taken.length === 0) { 
-        window.alert("Nessun articolo selezionato come preso."); 
-        return; 
+    if (taken.length === 0) {
+        window.alert("Nessun articolo selezionato come preso.");
+        return;
     }
     const payload = taken.map(it => ({
         articolo: it.articolo,
@@ -199,7 +199,7 @@ async function finishShopping() {
     await supabase.from("shopping_items").delete().in("id", idsToDelete);
     setShoppingItems(prev => prev.filter(i => !idsToDelete.includes(i.id)));
     window.alert("Acquisti salvati.");
-}
+  }
 
   const sortedShoppingItems = useMemo(() => {
     let items = [...shoppingItems];
@@ -226,7 +226,7 @@ async function finishShopping() {
 
   return (
     <div className="app-layout">
-      
+
       <div className="header header-mobile-compact">
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
           <FaBars />
@@ -243,9 +243,9 @@ async function finishShopping() {
           </div>
           <div className="tab-buttons">
             {SUPERMARKETS.map(s => (
-              <button 
-                key={s.key} 
-                className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`} 
+              <button
+                key={s.key}
+                className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`}
                 onClick={() => setSelectedSupermarket(s.key)}
               >
                 {s.icon} {s.label}
@@ -259,9 +259,9 @@ async function finishShopping() {
           </div>
           <div className="tab-buttons">
             {MODES.map(m => (
-              <button 
-                key={m.key} 
-                className={`tab-button ${m.key === mode ? 'active' : ''}`} 
+              <button
+                key={m.key}
+                className={`tab-button ${m.key === mode ? 'active' : ''}`}
                 onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
               >
                 {m.icon} {m.label}
@@ -279,7 +279,7 @@ async function finishShopping() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
-            
+
             {mode === 'vocale' && (
               <button
                 onClick={startVoiceRecognition}
@@ -289,7 +289,7 @@ async function finishShopping() {
                 {isListening ? '🎤 Ascolto...' : '🎤 Parla'}
               </button>
             )}
-            
+
             <button
               className="btn-primary"
               onClick={() => navigate('/pagina4-archivio-prodotti')}
@@ -344,27 +344,27 @@ async function finishShopping() {
           </div>
         )}
 
-        {/* Solo la lista della spesa che viene visualizzata quando la modalità è "archivio" */}
+        {/* Lista della spesa */}
         {shoppingItems.length > 0 && mode === 'archivio' && (
           <div className="shopping-table-container">
             <table className="shopping-table">
               <thead>
                 <tr>
+                  <th className="articolo-column-header">Articolo</th>
                   <th>
                     <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
                       Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
-                  <th>Articolo</th>
-                  <th>Preso</th>
-                  <th>Elimina</th>
-                  <th>Quantità</th>
-                  <th>Prezzo</th>
                   <th>
                     <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
                       Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
+                  <th>✔️</th>
+                  <th>🗑️</th>
+                  <th>Quantità</th>
+                  <th>Prezzo</th>
                 </tr>
               </thead>
               <tbody>
@@ -376,13 +376,16 @@ async function finishShopping() {
                   const prezzo = prodotto?.[sup?.priceField] ?? item.prezzo;
                   return (
                     <tr key={item.id} className={item.fatto ? 'taken' : ''}>
+                      <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
                       <td>{categoria?.name}</td>
-                      <td title={item.descrizione}>{item.articolo}</td>
+                      <td>{corsia}</td>
                       <td>
-                        <input type="checkbox" checked={item.fatto} onChange={() => toggleTaken(item)} />
+                        <button className="btn-icon" onClick={() => toggleTaken(item)}>
+                          {item.fatto ? '✔️' : '◻️'}
+                        </button>
                       </td>
                       <td>
-                        <button className="btn-delete" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
+                        <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
                       </td>
                       <td>
                         <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
@@ -390,9 +393,9 @@ async function finishShopping() {
                       <td>
                         <div style={{ display: 'flex', alignItems: 'center' }}>
                           <input type="number" className="small-input" value={prezzo} onChange={e => handleUpdateShoppingItem(item.id, { prezzo: parseFloat(e.target.value) })} />
-                          <button 
-                            className="btn-primary" 
-                            style={{ marginLeft: '5px' }} 
+                          <button
+                            className="btn-primary"
+                            style={{ marginLeft: '5px' }}
                             onClick={() => setShowOtherPrices(showOtherPrices === item.id ? null : item.id)}
                           >
                             ...
@@ -404,7 +407,6 @@ async function finishShopping() {
                           )}
                         </div>
                       </td>
-                      <td>{corsia}</td>
                     </tr>
                   );
                 })}
