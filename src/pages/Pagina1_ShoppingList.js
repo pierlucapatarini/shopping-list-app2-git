@@ -265,7 +265,7 @@ export default function Pagina1_ShoppingList() {
 
           {/* Sezione per le modalità, ora sempre visibile */}
           <div className="info-box">
-            <h2>Modalità Inserimento (Scegli come aggiungere prodotti alla lista)</h2>
+            <h2>Modalità Inserimento </h2>
           </div>
           <div className="tab-buttons">
             {MODES.map(m => (
