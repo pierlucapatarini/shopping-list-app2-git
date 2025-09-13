@@ -351,6 +351,10 @@ export default function Pagina1_ShoppingList() {
               <thead>
                 <tr>
                   <th className="articolo-column-header">Articolo</th>
+                  <th>✔️</th>
+                  <th>🗑️</th>
+                  <th>Quantità</th>
+                  <th>Prezzo</th>
                   <th>
                     <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
                       Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
@@ -361,10 +365,6 @@ export default function Pagina1_ShoppingList() {
                       Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
-                  <th>✔️</th>
-                  <th>🗑️</th>
-                  <th>Quantità</th>
-                  <th>Prezzo</th>
                 </tr>
               </thead>
               <tbody>
@@ -377,8 +377,6 @@ export default function Pagina1_ShoppingList() {
                   return (
                     <tr key={item.id} className={item.fatto ? 'taken' : ''}>
                       <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
-                      <td>{categoria?.name}</td>
-                      <td>{corsia}</td>
                       <td>
                         <button className="btn-icon" onClick={() => toggleTaken(item)}>
                           {item.fatto ? '✔️' : '◻️'}
@@ -407,6 +405,8 @@ export default function Pagina1_ShoppingList() {
                           )}
                         </div>
                       </td>
+                      <td>{categoria?.name}</td>
+                      <td>{corsia}</td>
                     </tr>
                   );
                 })}
