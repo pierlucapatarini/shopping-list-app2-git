@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "../styles/StilePagina1.css";
-import "../styles/MainStyle.css"; // Assicurati di importare anche MainStyle.css
+import "../styles/MainStyle.css";
 import { FaBars } from 'react-icons/fa';
 
 const SUPERMARKETS = [
@@ -14,10 +14,10 @@ const SUPERMARKETS = [
 ];
 
 const MODES = [
-  { key: "archivio", label: "Archivio", icon: "📚" },
-  { key: "preferiti", label: "Preferiti", icon: "⭐️" },
+  { key: "archivio", label: "Digitare", icon: "📚" },
+  { key: "preferiti", label: "Lista Preferiti", icon: "⭐️" },
   { key: "vocale", label: "Comando Vocale", icon: "🎤" },
-  { key: "ricette", label: "Ricette", icon: "👩‍🍳" },
+  { key: "ricette", label: "Ricette AI", icon: "👩‍🍳" },
 ];
 
 export default function Pagina1_ShoppingList() {
@@ -33,7 +33,7 @@ export default function Pagina1_ShoppingList() {
   const [showOtherPrices, setShowOtherPrices] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
   const [isListening, setIsListening] = useState(false);
-  const [showFullList, setShowFullList] = useState(true);
+  const [showFullList, setShowFullList] = useState(false); // Changed default state to false
 
   useEffect(() => {
     async function loadProfile() {
@@ -76,13 +76,6 @@ export default function Pagina1_ShoppingList() {
 
     const filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
 
-    if (mode === "vocale") {
-      return filteredProdotti.filter(p =>
-        p.articolo.toLowerCase().includes(q) ||
-        (p.descrizione || "").toLowerCase().includes(q)
-      );
-    }
-
     return filteredProdotti.filter(p =>
       p.articolo.toLowerCase().includes(q) ||
       (p.descrizione || "").toLowerCase().includes(q)
@@ -102,25 +95,30 @@ export default function Pagina1_ShoppingList() {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event) => {
+    recognition.onstart = () => setIsListening(true);
+    recognition.onresult = async (event) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
       setIsListening(false);
-    };
 
+      if (mode === 'vocale') {
+        const q = transcript.trim().toLowerCase();
+        const foundProduct = prodotti.find(p => p.articolo.toLowerCase().includes(q) && p.family_group === familyGroup);
+        if (foundProduct) {
+          await addProductToShopping(foundProduct);
+          window.alert(`Prodotto "${foundProduct.articolo}" aggiunto alla lista.`);
+          setSearchQuery("");
+        } else {
+          window.alert(`Nessun prodotto trovato con il nome "${transcript}".`);
+        }
+      }
+    };
     recognition.onerror = (event) => {
       console.error('Errore riconoscimento vocale:', event.error);
       setIsListening(false);
       window.alert('Errore nel riconoscimento vocale: ' + event.error);
     };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
+    recognition.onend = () => setIsListening(false);
 
     recognition.start();
   };
@@ -129,7 +127,6 @@ export default function Pagina1_ShoppingList() {
     if (!familyGroup || !userProfile) return;
     const sup = SUPERMARKETS.find(s => s.key === selectedSupermarket);
     const price = prod?.[sup?.priceField] ?? prod?.prezzo ?? 0;
-
     const categoryObject = findCategory(prod.categoria_id);
     const categoriaName = categoryObject?.name || null;
 
@@ -167,6 +164,11 @@ export default function Pagina1_ShoppingList() {
 
   async function toggleTaken(item) {
     await handleUpdateShoppingItem(item.id, { fatto: !item.fatto });
+  }
+
+  async function handleDeleteItem(id) {
+    await supabase.from('shopping_items').delete().eq('id', id);
+    setShoppingItems(prev => prev.filter(r => r.id !== id));
   }
 
   async function clearShoppingList() {
@@ -228,19 +230,21 @@ export default function Pagina1_ShoppingList() {
 
   return (
     <div className="app-layout">
-      {/* Header compattato in modalità ridotta */}
+      {/* Header */}
       <div className={`header ${!showFullList ? 'header-mobile-compact' : ''}`}>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
           <FaBars />
         </button>
         <h1>Lista della Spesa</h1>
-        <p>Gruppo: <strong>{familyGroup || '...'}</strong></p>
+        <p>Family's : <strong>{familyGroup || '...'}</strong></p>
       </div>
 
       <div className="scrollable-content">
-        {/* Sezioni nascoste in modalità ridotta */}
-        {showFullList && (
-            <div className="controls-container">
+        {/* Controlli sempre visibili */}
+        <div className="controls-container">
+          {/* Sezione per i supermercati, visibile solo nella lista completa */}
+          {showFullList && (
+            <>
               <div className="info-box">
                 <h2>Seleziona Supermercato</h2>
                 <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
@@ -256,31 +260,39 @@ export default function Pagina1_ShoppingList() {
                   </button>
                 ))}
               </div>
+            </>
+          )}
 
-              <div className="info-box">
-                <h2>Modalità Inserimento</h2>
-                <p>Scegli come aggiungere prodotti alla lista.</p>
-              </div>
-              <div className="tab-buttons">
-                {MODES.map(m => (
-                  <button
-                    key={m.key}
-                    className={`tab-button ${m.key === mode ? 'active' : ''}`}
-                    onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
-                  >
-                    {m.icon} {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-        )}
+          {/* Sezione per le modalità, ora sempre visibile */}
+          <div className="info-box">
+            <h2>Modalità Inserimento (Scegli come aggiungere prodotti alla lista)</h2>
+          </div>
+          <div className="tab-buttons">
+            {MODES.map(m => (
+              <button
+                key={m.key}
+                className={`tab-button ${m.key === mode ? 'active' : ''}`}
+                onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
+              >
+                {m.icon} {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
+        {/* Barra ricerca e vocale sempre visibile in modalità vocale */}
         {mode !== 'ricette' && (
           <div className="input-group">
             <input
               type="text"
               className="search-input"
-              placeholder={mode === 'preferiti' ? 'Cerca nei preferiti...' : mode === 'vocale' ? 'Parla per cercare...' : 'Cerca un prodotto...'}
+              placeholder={
+                mode === 'preferiti'
+                  ? 'Cerca nei preferiti...'
+                  : mode === 'vocale'
+                    ? 'Parla per cercare...'
+                    : 'Cerca un prodotto digitando ...'
+              }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -304,6 +316,7 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
+        {/* Risultati ricerca */}
         {(mode === 'preferiti' || searchQuery) && mode !== 'ricette' && searchResults.length > 0 && (
           <div className="shopping-table-container">
             <table className="shopping-table">
@@ -337,25 +350,25 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
+        {/* Messaggi vuoti */}
         {mode === 'preferiti' && searchResults.length === 0 && (
           <div className="info-box red">
             Nessun prodotto preferito trovato.
           </div>
         )}
-
         {mode === 'vocale' && searchQuery && searchResults.length === 0 && (
           <div className="info-box red">
             Nessun prodotto trovato con "{searchQuery}".
           </div>
         )}
 
-        {/* Pulsanti per la visualizzazione della lista, sempre visibili */}
+        {/* Pulsanti vista lista - INVERTITI */}
         <div className="button-list-container">
-          <button className={`btn-secondary ${showFullList ? 'active' : ''}`} onClick={() => setShowFullList(true)}>
-            Visualizza lista completa
-          </button>
           <button className={`btn-secondary ${!showFullList ? 'active' : ''}`} onClick={() => setShowFullList(false)}>
             Visualizza lista ridotta
+          </button>
+          <button className={`btn-secondary ${showFullList ? 'active' : ''}`} onClick={() => setShowFullList(true)}>
+            Visualizza lista completa
           </button>
         </div>
 
@@ -400,7 +413,7 @@ export default function Pagina1_ShoppingList() {
                             </button>
                           </td>
                           <td>
-                            <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
+                            <button className="btn-icon" onClick={() => handleDeleteItem(item.id)}>🗑️</button>
                           </td>
                           <td>
                             <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
@@ -408,13 +421,7 @@ export default function Pagina1_ShoppingList() {
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center' }}>
                               <input type="number" className="small-input" value={prezzo} onChange={e => handleUpdateShoppingItem(item.id, { prezzo: parseFloat(e.target.value) })} />
-                              <button
-                                className="btn-primary"
-                                style={{ marginLeft: '5px' }}
-                                onClick={() => setShowOtherPrices(showOtherPrices === item.id ? null : item.id)}
-                              >
-                                ...
-                              </button>
+                              <button className="btn-primary" style={{ marginLeft: '5px' }} onClick={() => setShowOtherPrices(showOtherPrices === item.id ? null : item.id)}>...</button>
                               {showOtherPrices === item.id && (
                                 <div className="other-prices-dropdown">
                                   {SUPERMARKETS.map(s => <div key={s.key}>{s.label}: {prodotto?.[s.priceField] ?? '-'}</div>)}
@@ -445,12 +452,10 @@ export default function Pagina1_ShoppingList() {
                       <tr key={item.id} className={item.fatto ? 'taken' : ''}>
                         <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
                         <td>
-                          <button className="btn-icon" onClick={() => toggleTaken(item)}>
-                            {item.fatto ? '✔️' : '◻️'}
-                          </button>
+                          <button className="btn-icon" onClick={() => toggleTaken(item)}>{item.fatto ? '✔️' : '◻️'}</button>
                         </td>
                         <td>
-                          <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
+                          <button className="btn-icon" onClick={() => handleDeleteItem(item.id)}>🗑️</button>
                         </td>
                       </tr>
                     ))}

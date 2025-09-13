@@ -179,3 +179,70 @@
   background-color: var(--primary-color);
   color: #fff;
 }
+
+
+.header-mobile-compact {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px; /* più compatto */
+}
+
+.header-mobile-compact h1 {
+  font-size: 1.2em;
+  margin: 0 8px;
+}
+
+/* Header compatto in modalità ridotta */
+.header-mobile-compact {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px; /* più stretto */
+}
+
+.header-mobile-compact h1 {
+  font-size: 1.1em; /* più piccolo */
+  margin: 0 8px;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.header-mobile-compact p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #f0f0f0; /* più leggero */
+}
+
+.header-mobile-compact .btn-secondary {
+  order: 0; /* pulsante a sinistra */
+  padding: 6px 10px;
+  font-size: 1em;
+}
+
+/* Header compatto in modalità ridotta */
+.header-mobile-compact {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 10px; /* più stretto */
+}
+
+.header-mobile-compact h1 {
+  font-size: 1.1em; /* più piccolo */
+  margin: 0 8px;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.header-mobile-compact p {
+  margin: 0;
+  font-size: 0.9em;
+  color: #f0f0f0; /* più leggero */
+}
+
+.header-mobile-compact .btn-secondary {
+  order: 0; /* pulsante a sinistra */
+  padding: 6px 10px;
+  font-size: 1em;
+}

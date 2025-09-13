@@ -587,3 +587,45 @@ body {
     transform: translateY(-5px);
     box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
 }
+
+/* Stili per la modalità di inserimento compatta */
+.mode-selection-compact {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  gap: 5px; /* Spazio ridotto tra i pulsanti */
+  margin-top: 10px; /* Spazio ridotto in alto */
+}
+
+.mode-button-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.mode-button {
+  width: 50px; /* Dimensione fissa per un aspetto compatto */
+  height: 50px;
+  background-color: var(--color-tertiary-bg);
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 24px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mode-button:hover,
+.mode-button.active {
+  background-color: var(--color-primary);
+}
+
+.mode-label {
+  font-size: 10px; /* Font molto piccolo per la label */
+  text-align: center;
+  margin-top: 5px; /* Spazio ridotto tra pulsante e label */
+  color: var(--text-color);
+}
