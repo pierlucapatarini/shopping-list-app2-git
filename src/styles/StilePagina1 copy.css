@@ -66,14 +66,6 @@
   padding: 10px;
 }
 
-/* Contenitore per i pulsanti di visualizzazione */
-.button-list-container {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    margin: 16px 0;
-}
-
 /* Modifiche alla tabella */
 .shopping-table-container {
   overflow-x: auto;
@@ -104,10 +96,10 @@
 }
 
 /* Per le icone e le colonne strette */
-.shopping-table th:nth-child(2), /* 'Preso' */
-.shopping-table td:nth-child(2),
-.shopping-table th:nth-child(3), /* 'Elimina' */
-.shopping-table td:nth-child(3) {
+.shopping-table th:nth-child(4), /* 'Preso' */
+.shopping-table td:nth-child(4),
+.shopping-table th:nth-child(5), /* 'Elimina' */
+.shopping-table td:nth-child(5) {
   width: 1%;
   white-space: nowrap;
   text-align: center;
@@ -143,39 +135,20 @@
   user-select: none;
 }
 
-/* Stili per header compattato */
-.header-mobile-compact {
-  flex-direction: row;
+.header-compact {
+  height: 50px; /* compattato */
+  display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 0 10px;
 }
 
-.header-mobile-compact h1,
-.header-mobile-compact p {
-  margin: 0;
-  flex-grow: 1;
-  text-align: center;
+.btn-menu-top-right {
+  position: absolute;
+  top: 10px;
+  right: 10px;
 }
 
-.header-mobile-compact .btn-secondary {
-  order: 1; /* Sposta il pulsante a sinistra */
-}
-
-/* Pulsanti di switch lista: visibili e leggibili */
-.button-list-container .btn-secondary {
-  color: var(--primary-color);
-  border: 2px solid var(--primary-color);
-  background-color: #fff;
-  font-weight: 600;
-}
-
-.button-list-container .btn-secondary:hover {
-  background-color: var(--primary-light);
-  color: #fff;
-  border-color: var(--primary-light);
-}
-
-.button-list-container .btn-secondary.active {
-  background-color: var(--primary-color);
-  color: #fff;
+.shopping-table-container .small-input {
+  width: 50px; /* ridotto per compatto */
 }

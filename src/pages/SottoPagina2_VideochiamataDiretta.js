@@ -18,23 +18,25 @@ function DirectVideoChat() {
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(false);
     const localStream = useRef(null);
-    const [isLocalReady, setIsLocalReady] = useState(false);
-    const [isRemoteReady, setIsRemoteReady] = useState(false);
-    const [pcIsReady, setPcIsReady] = useState(false);
-    const queuedOffer = useRef(null);
     const isCaller = state?.isCaller;
 
     const { familyGroup, user, remoteUserId } = state || {};
 
-    // Helper per creare un'istanza RTCPeerConnection
-    const createPeerConnection = async () => {
+    const createAndConnectPeer = async () => {
         try {
-            console.log("Creazione PeerConnection...");
-            pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+            setStatus("Acquisizione videocamera e microfono...");
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             
+            localStream.current = stream;
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+
+            pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+            stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
+
             pc.current.onicecandidate = (e) => {
                 if (e.candidate) {
-                    console.log("Inviato ICE candidate.");
                     channel.current.send({
                         type: 'broadcast',
                         event: 'webrtc-signal',
@@ -48,101 +50,45 @@ function DirectVideoChat() {
             };
 
             pc.current.ontrack = (e) => {
-                console.log("Ricevuto track remoto.");
                 if (remoteVideoRef.current && e.streams && e.streams[0]) {
                     remoteVideoRef.current.srcObject = e.streams[0];
-                }
-            };
-
-            pc.current.onconnectionstatechange = () => {
-                const s = pc.current.connectionState;
-                console.log(`Stato connessione WebRTC: ${s}`);
-                setStatus(`Stato connessione: ${s}`);
-                if (s === 'disconnected' || s === 'failed') {
-                    console.log("Connessione WebRTC fallita o disconnessa.");
-                    handleHangUp();
+                    setStatus("Chiamata in corso...");
                 }
             };
             
-            console.log("Acquisizione media locali...");
-            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            localStream.current = stream;
-            if (localVideoRef.current) {
-                localVideoRef.current.srcObject = stream;
+            pc.current.onconnectionstatechange = () => {
+                if (pc.current.connectionState === 'disconnected' || pc.current.connectionState === 'failed') {
+                    handleHangUp();
+                }
+            };
+
+            if (isCaller) {
+                const offer = await pc.current.createOffer();
+                await pc.current.setLocalDescription(offer);
+                channel.current.send({
+                    type: 'broadcast',
+                    event: 'webrtc-signal',
+                    payload: {
+                        senderId: user.id,
+                        type: 'offer',
+                        offer: pc.current.localDescription,
+                    },
+                });
+                setStatus('Offerta inviata, in attesa di risposta...');
             }
-            stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
-            setPcIsReady(true);
-            console.log("PeerConnection e media pronti.");
 
         } catch (error) {
-            console.error("Errore nell'accesso ai media:", error);
-            setStatus("Errore: Impossibile accedere ai media.");
+            console.error("Errore nell'accesso ai media o connessione:", error);
+            setStatus("Errore: Impossibile accedere ai media o avviare la connessione.");
             handleHangUp();
         }
     };
 
-    // Gestore per i segnali WebRTC
     const handleWebRTCSignals = async ({ payload }) => {
         if (payload.senderId === user.id) return;
-        console.log('Ricevuto segnale WebRTC:', payload.type);
 
-        if (payload.type === 'ready-for-call') {
-            console.log("L'altro utente è pronto.");
-            setIsRemoteReady(true);
-        } else if (payload.type === 'offer' && !isCaller) {
-            if (pcIsReady) {
-                console.log("PC pronto, accetto l'offerta immediatamente.");
-                await acceptCall(payload.offer);
-            } else {
-                console.log("PC non pronto, metto l'offerta in coda.");
-                queuedOffer.current = payload.offer;
-            }
-        } else if (payload.type === 'answer' && isCaller) {
-            console.log("Ricevuta risposta. Imposto remote description.");
-            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            setStatus('Connessione stabilita!');
-        } else if (payload.type === 'ice-candidate') {
-            console.log("Ricevuto ICE candidate.");
-            try {
-                await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-            } catch (e) {
-                console.error('Errore aggiungendo ICE candidate:', e);
-            }
-        } else if (payload.type === 'hang-up') {
-            handleHangUp();
-        }
-    };
-    
-    // Inizia la chiamata (solo per il chiamante)
-    const initiateCall = async () => {
-        try {
-            console.log("Avvio chiamata: creazione offerta...");
-            const offer = await pc.current.createOffer();
-            await pc.current.setLocalDescription(offer);
-            channel.current.send({
-                type: 'broadcast',
-                event: 'webrtc-signal',
-                payload: {
-                    senderId: user.id,
-                    type: 'offer',
-                    offer: pc.current.localDescription,
-                },
-            });
-            setStatus('Offerta inviata, in attesa di risposta...');
-            console.log("Offerta inviata.");
-        } catch (error) {
-            console.error("Errore nella creazione dell'offerta:", error);
-            setStatus("Errore durante l'avvio della chiamata.");
-            handleHangUp();
-        }
-    };
-
-    // Accetta la chiamata (solo per il ricevente)
-    const acceptCall = async (offer) => {
-        try {
-            console.log("Accettazione chiamata: impostazione remote description...");
-            await pc.current.setRemoteDescription(new RTCSessionDescription(offer));
-            console.log("Creazione risposta...");
+        if (payload.type === 'offer' && !isCaller) {
+            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
             const answer = await pc.current.createAnswer();
             await pc.current.setLocalDescription(answer);
             channel.current.send({
@@ -155,10 +101,16 @@ function DirectVideoChat() {
                 },
             });
             setStatus('Risposta inviata, connessione in corso...');
-            console.log("Risposta inviata.");
-        } catch (error) {
-            console.error("Errore nell'accettare l'offerta:", error);
-            setStatus("Errore nell'accettare la chiamata.");
+        } else if (payload.type === 'answer' && isCaller) {
+            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            // Il status viene aggiornato quando arriva l'on-track
+        } else if (payload.type === 'ice-candidate') {
+            try {
+                await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+                console.error('Errore aggiungendo ICE candidate:', e);
+            }
+        } else if (payload.type === 'hang-up') {
             handleHangUp();
         }
     };
@@ -173,21 +125,9 @@ function DirectVideoChat() {
         channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
 
         channel.current.on('broadcast', { event: 'webrtc-signal' }, handleWebRTCSignals)
-            .subscribe(async (status) => {
+            .subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
-                    console.log('Canale Supabase sottoscritto.');
-                    await createPeerConnection();
-                    // Notifica all'altro utente che sei pronto
-                    console.log("Invio segnale 'ready-for-call'...");
-                    channel.current.send({
-                        type: 'broadcast',
-                        event: 'webrtc-signal',
-                        payload: {
-                            senderId: user.id,
-                            type: 'ready-for-call',
-                        },
-                    });
-                    setIsLocalReady(true);
+                    createAndConnectPeer();
                 }
             });
 
@@ -202,22 +142,7 @@ function DirectVideoChat() {
                 supabase.removeChannel(channel.current);
             }
         };
-    }, [familyGroup, user, remoteUserId, navigate]);
-
-    useEffect(() => {
-        if (isLocalReady && isRemoteReady && isCaller) {
-            console.log("Entrambi gli utenti sono pronti, avvio della chiamata...");
-            initiateCall();
-        }
-    }, [isLocalReady, isRemoteReady, isCaller]);
-
-    useEffect(() => {
-        if (pcIsReady && queuedOffer.current && !isCaller) {
-            console.log("PC pronto e offerta in coda, la processo ora.");
-            acceptCall(queuedOffer.current);
-            queuedOffer.current = null; // Svuota la coda dopo l'elaborazione
-        }
-    }, [pcIsReady, isCaller]);
+    }, [familyGroup, user, remoteUserId, navigate, isCaller]);
 
 
     const handleHangUp = () => {

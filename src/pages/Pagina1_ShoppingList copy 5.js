@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
 import "../styles/StilePagina1.css";
-import "../styles/MainStyle.css"; // Assicurati di importare anche MainStyle.css
 import { FaBars } from 'react-icons/fa';
 
 const SUPERMARKETS = [
@@ -33,7 +32,6 @@ export default function Pagina1_ShoppingList() {
   const [showOtherPrices, setShowOtherPrices] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
   const [isListening, setIsListening] = useState(false);
-  const [showFullList, setShowFullList] = useState(true);
 
   useEffect(() => {
     async function loadProfile() {
@@ -134,24 +132,24 @@ export default function Pagina1_ShoppingList() {
     const categoriaName = categoryObject?.name || null;
 
     const newItem = {
-      articolo: prod.articolo || prod,
-      descrizione: prod.descrizione_articolo || prod.descrizione || null,
-      inserito_da: userProfile.username,
-      user_id: userProfile.id,
-      fatto: false,
-      quantita: 1,
-      unita_misura: prod.unita_misura || null,
-      prezzo: price,
-      supermercato: selectedSupermarket,
-      categoria: categoriaName,
-      prodotto_id: prod.id || null,
-      family_group: familyGroup,
-      created_at: new Date().toISOString(),
-      prezzo_esselunga: prod.prezzo_esselunga,
-      prezzo_mercato: prod.prezzo_mercato,
-      prezzo_carrefour: prod.prezzo_carrefour,
-      prezzo_penny: prod.prezzo_penny,
-      prezzo_coop: prod.prezzo_coop,
+        articolo: prod.articolo || prod,
+        descrizione: prod.descrizione_articolo || prod.descrizione || null,
+        inserito_da: userProfile.username,
+        user_id: userProfile.id,
+        fatto: false,
+        quantita: 1,
+        unita_misura: prod.unita_misura || null,
+        prezzo: price,
+        supermercato: selectedSupermarket,
+        categoria: categoriaName,
+        prodotto_id: prod.id || null,
+        family_group: familyGroup,
+        created_at: new Date().toISOString(),
+        prezzo_esselunga: prod.prezzo_esselunga,
+        prezzo_mercato: prod.prezzo_mercato,
+        prezzo_carrefour: prod.prezzo_carrefour,
+        prezzo_penny: prod.prezzo_penny,
+        prezzo_coop: prod.prezzo_coop,
     };
 
     const { data } = await supabase.from("shopping_items").insert([newItem]).select();
@@ -178,23 +176,23 @@ export default function Pagina1_ShoppingList() {
   async function finishShopping() {
     const taken = shoppingItems.filter(i => i.fatto);
     if (taken.length === 0) {
-      window.alert("Nessun articolo selezionato come preso.");
-      return;
+        window.alert("Nessun articolo selezionato come preso.");
+        return;
     }
     const payload = taken.map(it => ({
-      articolo: it.articolo,
-      categoria: it.categoria,
-      supermercato: it.supermercato,
-      data_acquisto: new Date().toISOString(),
-      family_group: it.family_group,
-      quantita: it.quantita,
-      unita_misura: it.unita_misura,
-      prezzo: it.prezzo,
-      prezzo_esselunga: it.prezzo_esselunga,
-      prezzo_mercato: it.prezzo_mercato,
-      prezzo_coop: it.prezzo_coop,
-      prezzo_penny: it.prezzo_penny,
-      prezzo_carrefour: it.prezzo_carrefour,
+        articolo: it.articolo,
+        categoria: it.categoria,
+        supermercato: it.supermercato,
+        data_acquisto: new Date().toISOString(),
+        family_group: it.family_group,
+        quantita: it.quantita,
+        unita_misura: it.unita_misura,
+        prezzo: it.prezzo,
+        prezzo_esselunga: it.prezzo_esselunga,
+        prezzo_mercato: it.prezzo_mercato,
+        prezzo_coop: it.prezzo_coop,
+        prezzo_penny: it.prezzo_penny,
+        prezzo_carrefour: it.prezzo_carrefour,
     }));
     await supabase.from("acquisti_effettuati").insert(payload);
     const idsToDelete = taken.map(t => t.id);
@@ -228,8 +226,8 @@ export default function Pagina1_ShoppingList() {
 
   return (
     <div className="app-layout">
-      {/* Header compattato in modalità ridotta */}
-      <div className={`header ${!showFullList ? 'header-mobile-compact' : ''}`}>
+
+      <div className="header header-mobile-compact">
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
           <FaBars />
         </button>
@@ -238,42 +236,39 @@ export default function Pagina1_ShoppingList() {
       </div>
 
       <div className="scrollable-content">
-        {/* Sezioni nascoste in modalità ridotta */}
-        {showFullList && (
-            <div className="controls-container">
-              <div className="info-box">
-                <h2>Seleziona Supermercato</h2>
-                <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
-              </div>
-              <div className="tab-buttons">
-                {SUPERMARKETS.map(s => (
-                  <button
-                    key={s.key}
-                    className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`}
-                    onClick={() => setSelectedSupermarket(s.key)}
-                  >
-                    {s.icon} {s.label}
-                  </button>
-                ))}
-              </div>
+        <div className="controls-container">
+          <div className="info-box">
+            <h2>Seleziona Supermercato</h2>
+            <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
+          </div>
+          <div className="tab-buttons">
+            {SUPERMARKETS.map(s => (
+              <button
+                key={s.key}
+                className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`}
+                onClick={() => setSelectedSupermarket(s.key)}
+              >
+                {s.icon} {s.label}
+              </button>
+            ))}
+          </div>
 
-              <div className="info-box">
-                <h2>Modalità Inserimento</h2>
-                <p>Scegli come aggiungere prodotti alla lista.</p>
-              </div>
-              <div className="tab-buttons">
-                {MODES.map(m => (
-                  <button
-                    key={m.key}
-                    className={`tab-button ${m.key === mode ? 'active' : ''}`}
-                    onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
-                  >
-                    {m.icon} {m.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-        )}
+          <div className="info-box">
+            <h2>Modalità Inserimento</h2>
+            <p>Scegli come aggiungere prodotti alla lista.</p>
+          </div>
+          <div className="tab-buttons">
+            {MODES.map(m => (
+              <button
+                key={m.key}
+                className={`tab-button ${m.key === mode ? 'active' : ''}`}
+                onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
+              >
+                {m.icon} {m.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {mode !== 'ricette' && (
           <div className="input-group">
@@ -349,116 +344,75 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
-        {/* Pulsanti per la visualizzazione della lista, sempre visibili */}
-        <div className="button-list-container">
-          <button className={`btn-secondary ${showFullList ? 'active' : ''}`} onClick={() => setShowFullList(true)}>
-            Visualizza lista completa
-          </button>
-          <button className={`btn-secondary ${!showFullList ? 'active' : ''}`} onClick={() => setShowFullList(false)}>
-            Visualizza lista ridotta
-          </button>
-        </div>
-
         {/* Lista della spesa */}
-        {shoppingItems.length > 0 && (
-          <>
-            {showFullList ? (
-              <div className="shopping-table-container">
-                <table className="shopping-table">
-                  <thead>
-                    <tr>
-                      <th className="articolo-column-header">Articolo</th>
-                      <th>✔️</th>
-                      <th>🗑️</th>
-                      <th>Quantità</th>
-                      <th>Prezzo</th>
-                      <th>
-                        <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
-                          Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
-                        </div>
-                      </th>
-                      <th>
-                        <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
-                          Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
-                        </div>
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedShoppingItems.map(item => {
-                      const prodotto = prodotti.find(p => p.id === item.prodotto_id) || {};
-                      const sup = SUPERMARKETS.find(s => s.key === selectedSupermarket);
-                      const categoria = findCategory(item.categoria);
-                      const corsia = categoria?.[sup?.corsiaField] || prodotto?.[sup?.corsiaField] || prodotto?.corsia || '';
-                      const prezzo = prodotto?.[sup?.priceField] ?? item.prezzo;
-                      return (
-                        <tr key={item.id} className={item.fatto ? 'taken' : ''}>
-                          <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
-                          <td>
-                            <button className="btn-icon" onClick={() => toggleTaken(item)}>
-                              {item.fatto ? '✔️' : '◻️'}
-                            </button>
-                          </td>
-                          <td>
-                            <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
-                          </td>
-                          <td>
-                            <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
-                          </td>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center' }}>
-                              <input type="number" className="small-input" value={prezzo} onChange={e => handleUpdateShoppingItem(item.id, { prezzo: parseFloat(e.target.value) })} />
-                              <button
-                                className="btn-primary"
-                                style={{ marginLeft: '5px' }}
-                                onClick={() => setShowOtherPrices(showOtherPrices === item.id ? null : item.id)}
-                              >
-                                ...
-                              </button>
-                              {showOtherPrices === item.id && (
-                                <div className="other-prices-dropdown">
-                                  {SUPERMARKETS.map(s => <div key={s.key}>{s.label}: {prodotto?.[s.priceField] ?? '-'}</div>)}
-                                </div>
-                              )}
-                            </div>
-                          </td>
-                          <td>{categoria?.name}</td>
-                          <td>{corsia}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="shopping-table-container">
-                <table className="shopping-table">
-                  <thead>
-                    <tr>
-                      <th className="articolo-column-header">Articolo</th>
-                      <th>✔️</th>
-                      <th>🗑️</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedShoppingItems.map(item => (
-                      <tr key={item.id} className={item.fatto ? 'taken' : ''}>
-                        <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
-                        <td>
-                          <button className="btn-icon" onClick={() => toggleTaken(item)}>
-                            {item.fatto ? '✔️' : '◻️'}
+        {shoppingItems.length > 0 && mode === 'archivio' && (
+          <div className="shopping-table-container">
+            <table className="shopping-table">
+              <thead>
+                <tr>
+                  <th className="articolo-column-header">Articolo</th>
+                  <th>✔️</th>
+                  <th>🗑️</th>
+                  <th>Quantità</th>
+                  <th>Prezzo</th>
+                  <th>
+                    <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
+                      Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
+                    </div>
+                  </th>
+                  <th>
+                    <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
+                      Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
+                    </div>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedShoppingItems.map(item => {
+                  const prodotto = prodotti.find(p => p.id === item.prodotto_id) || {};
+                  const sup = SUPERMARKETS.find(s => s.key === selectedSupermarket);
+                  const categoria = findCategory(item.categoria);
+                  const corsia = categoria?.[sup?.corsiaField] || prodotto?.[sup?.corsiaField] || prodotto?.corsia || '';
+                  const prezzo = prodotto?.[sup?.priceField] ?? item.prezzo;
+                  return (
+                    <tr key={item.id} className={item.fatto ? 'taken' : ''}>
+                      <td title={item.descrizione} className="articolo-column-cell">{item.articolo}</td>
+                      <td>
+                        <button className="btn-icon" onClick={() => toggleTaken(item)}>
+                          {item.fatto ? '✔️' : '◻️'}
+                        </button>
+                      </td>
+                      <td>
+                        <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
+                      </td>
+                      <td>
+                        <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center' }}>
+                          <input type="number" className="small-input" value={prezzo} onChange={e => handleUpdateShoppingItem(item.id, { prezzo: parseFloat(e.target.value) })} />
+                          <button
+                            className="btn-primary"
+                            style={{ marginLeft: '5px' }}
+                            onClick={() => setShowOtherPrices(showOtherPrices === item.id ? null : item.id)}
+                          >
+                            ...
                           </button>
-                        </td>
-                        <td>
-                          <button className="btn-icon" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </>
+                          {showOtherPrices === item.id && (
+                            <div className="other-prices-dropdown">
+                              {SUPERMARKETS.map(s => <div key={s.key}>{s.label}: {prodotto?.[s.priceField] ?? '-'}</div>)}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td>{categoria?.name}</td>
+                      <td>{corsia}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
