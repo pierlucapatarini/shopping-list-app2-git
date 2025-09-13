@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import "../styles/StilePagina1.css"; // Importa il nuovo file
+import "../styles/MainStyle.css"; 
 import { FaBars } from 'react-icons/fa'; 
+
 
 const SUPERMARKETS = [
   { key: "esselunga", label: "Esselunga", priceField: "prezzo_esselunga", corsiaField: "corsia_esselunga", icon: "🛒" },
@@ -261,7 +262,7 @@ async function finishShopping() {
             {MODES.map(m => (
               <button 
                 key={m.key} 
-                className={`tab-button ${m.key === mode ? 'active' : ''}`} 
+                className={`tab-button ${mode === m.key ? 'active' : ''}`} 
                 onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
               >
                 {m.icon} {m.label}

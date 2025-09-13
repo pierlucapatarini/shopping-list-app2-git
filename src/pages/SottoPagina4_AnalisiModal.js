@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import '../styles/archivio.css';
+import '../styles/MainStyle.css';
 import '../styles/StileSottoPagina4.css';
 
 const SottoPagina4_AnalisiModal = ({ onClose, familyGroup }) => {

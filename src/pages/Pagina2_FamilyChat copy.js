@@ -109,19 +109,13 @@ function FamilyChat() {
                         }
                     )
                     .on('broadcast', { event: 'direct-call-signal' }, ({ payload }) => {
-                        console.log('Ricevuto broadcast direct-call-signal:', payload); // Debug: verifica il payload ricevuto
                         if (payload.recipientId === user.id && payload.senderId !== user.id) {
                             const callerUsername = familyMembers.find(m => m.id === payload.senderId)?.username;
                             setIncomingCall({
                                 callerId: payload.senderId,
                                 callerUsername,
                             });
-                            try {
-                                const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-                                audio.play().catch(e => console.error("Errore riproduzione audio:", e));
-                            } catch (e) {
-                                console.error("Errore creazione oggetto Audio:", e);
-                            }
+                            new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3').play();
                         }
                     })
                     .subscribe((status) => {
@@ -380,7 +374,7 @@ function FamilyChat() {
             });
 
         // Step 2: Invia il segnale di chiamata tramite broadcast
-        const channel = supabase.channel(`direct-call-signal-${familyGroup}`);
+        const channel = supabase.channel(`messages-${familyGroup}`);
         await channel.subscribe();
         channel.send({
             type: 'broadcast',
@@ -388,6 +382,7 @@ function FamilyChat() {
             payload: {
                 senderId: user.id,
                 recipientId: selectedDirectCallUser,
+                callUrl: `/video-chat-diretta`
             }
         });
         

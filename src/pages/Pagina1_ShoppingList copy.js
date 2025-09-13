@@ -1,9 +1,10 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../supabaseClient";
-import "../styles/StilePagina1.css"; // Importa il nuovo file
-import { FaBars } from 'react-icons/fa'; 
+import "../styles/MainStyle.css"; // Nuovo file di stile di base
 
+
+// Non toccare i dati, solo la presentazione
 const SUPERMARKETS = [
   { key: "esselunga", label: "Esselunga", priceField: "prezzo_esselunga", corsiaField: "corsia_esselunga", icon: "🛒" },
   { key: "mercato", label: "Mercato", priceField: "prezzo_mercato", corsiaField: "corsia_mercato", icon: "🍏" },
@@ -227,49 +228,49 @@ async function finishShopping() {
   return (
     <div className="app-layout">
       
-      <div className="header header-mobile-compact">
+      <div className="header">
+        <h1>Lista della Spesa 🛒</h1>
+        <p>Gruppo Famiglia: <strong>{familyGroup || '...'}</strong></p>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
-          <FaBars />
+          Menu Principale
         </button>
-        <h1>Lista della Spesa</h1>
-        <p>Gruppo: <strong>{familyGroup || '...'}</strong></p>
       </div>
 
-      <div className="scrollable-content">
-        <div className="controls-container">
-          <div className="info-box">
-            <h2>Seleziona Supermercato</h2>
-            <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
-          </div>
-          <div className="tab-buttons">
-            {SUPERMARKETS.map(s => (
-              <button 
-                key={s.key} 
-                className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`} 
-                onClick={() => setSelectedSupermarket(s.key)}
-              >
-                {s.icon} {s.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="info-box">
-            <h2>Modalità Inserimento</h2>
-            <p>Scegli come aggiungere prodotti alla lista.</p>
-          </div>
-          <div className="tab-buttons">
-            {MODES.map(m => (
-              <button 
-                key={m.key} 
-                className={`tab-button ${m.key === mode ? 'active' : ''}`} 
-                onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
-              >
-                {m.icon} {m.label}
-              </button>
-            ))}
-          </div>
+      <div className="controls-container">
+        <div className="info-box">
+          <h2>Seleziona Supermercato</h2>
+          <p>Prezzi e corsie si aggiorneranno automaticamente.</p>
+        </div>
+        <div className="tab-buttons">
+          {SUPERMARKETS.map(s => (
+            <button 
+              key={s.key} 
+              className={`tab-button ${selectedSupermarket === s.key ? 'active' : ''}`} 
+              onClick={() => setSelectedSupermarket(s.key)}
+            >
+              {s.icon} {s.label}
+            </button>
+          ))}
         </div>
 
+        <div className="info-box">
+          <h2>Modalità Inserimento</h2>
+          <p>Scegli come aggiungere prodotti alla lista.</p>
+        </div>
+        <div className="tab-buttons">
+          {MODES.map(m => (
+            <button 
+              key={m.key} 
+              className={`tab-button ${mode === m.key ? 'active' : ''}`} 
+              onClick={() => m.key === 'ricette' ? navigate('/pagina3-ricette-ai') : setMode(m.key)}
+            >
+              {m.icon} {m.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="main-content">
         {mode !== 'ricette' && (
           <div className="input-group">
             <input
@@ -315,7 +316,7 @@ async function finishShopping() {
                   const categoria = findCategory(p.categoria || p.categoria_id);
                   return (
                     <tr key={p.id || p.articolo}>
-                      <td title={p.descrizione}>
+                      <td>
                         <strong>{p.articolo || p}</strong>
                         {p.preferito && <span role="img" aria-label="preferito">⭐</span>}
                       </td>
@@ -344,27 +345,26 @@ async function finishShopping() {
           </div>
         )}
 
-        {/* Solo la lista della spesa che viene visualizzata quando la modalità è "archivio" */}
-        {shoppingItems.length > 0 && mode === 'archivio' && (
+        {shoppingItems.length > 0 && (
           <div className="shopping-table-container">
             <table className="shopping-table">
               <thead>
                 <tr>
+                  <th>
+                    <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
+                      Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
+                    </div>
+                  </th>
                   <th>
                     <div className="sort-header" onClick={() => setSortConfig({ key: 'categoria', ascending: !sortConfig.ascending })}>
                       Categoria {sortConfig.key === 'categoria' && (sortConfig.ascending ? '↓' : '↑')}
                     </div>
                   </th>
                   <th>Articolo</th>
-                  <th>Preso</th>
-                  <th>Elimina</th>
                   <th>Quantità</th>
                   <th>Prezzo</th>
-                  <th>
-                    <div className="sort-header" onClick={() => setSortConfig({ key: 'corsia', ascending: !sortConfig.ascending })}>
-                      Corsia {sortConfig.key === 'corsia' && (sortConfig.ascending ? '↓' : '↑')}
-                    </div>
-                  </th>
+                  <th>Preso</th>
+                  <th>Elimina</th>
                 </tr>
               </thead>
               <tbody>
@@ -376,14 +376,9 @@ async function finishShopping() {
                   const prezzo = prodotto?.[sup?.priceField] ?? item.prezzo;
                   return (
                     <tr key={item.id} className={item.fatto ? 'taken' : ''}>
+                      <td>{corsia}</td>
                       <td>{categoria?.name}</td>
-                      <td title={item.descrizione}>{item.articolo}</td>
-                      <td>
-                        <input type="checkbox" checked={item.fatto} onChange={() => toggleTaken(item)} />
-                      </td>
-                      <td>
-                        <button className="btn-delete" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
-                      </td>
+                      <td>{item.articolo}</td>
                       <td>
                         <input type="number" className="small-input" value={item.quantita} onChange={e => handleUpdateShoppingItem(item.id, { quantita: parseInt(e.target.value) })} />
                       </td>
@@ -404,7 +399,12 @@ async function finishShopping() {
                           )}
                         </div>
                       </td>
-                      <td>{corsia}</td>
+                      <td>
+                        <input type="checkbox" checked={item.fatto} onChange={() => toggleTaken(item)} />
+                      </td>
+                      <td>
+                        <button className="btn-delete" onClick={() => supabase.from('shopping_items').delete().eq('id', item.id) && setShoppingItems(prev => prev.filter(r => r.id !== item.id))}>🗑️</button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -415,7 +415,7 @@ async function finishShopping() {
       </div>
 
       <div className="footer">
-        {shoppingItems.length > 0 && mode === 'archivio' && (
+        {shoppingItems.length > 0 && (
           <div className="input-group">
             <button className="btn-delete" onClick={clearShoppingList}>Azzera Lista</button>
             <button className="btn-primary" onClick={finishShopping}>FINE SPESA 🥳</button>

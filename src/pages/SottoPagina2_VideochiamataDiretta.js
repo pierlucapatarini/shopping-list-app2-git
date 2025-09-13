@@ -3,371 +3,298 @@ import { supabase } from '../supabaseClient';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const STUN_SERVERS = [
-  { urls: 'stun:stun.l.google.com:19302' },
-  { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
 ];
 
 function DirectVideoChat() {
-  const localVideoRef = useRef();
-  const remoteVideoRef = useRef();
-  const pc = useRef(null);
-  const channel = useRef(null);
-  const { state } = useLocation();
-  const navigate = useNavigate();
-  const [status, setStatus] = useState('In attesa di risposta...');
-  const [isMuted, setIsMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
-  const localStream = useRef(null);
-  const iceCandidatesQueue = useRef([]);
+    const localVideoRef = useRef();
+    const remoteVideoRef = useRef();
+    const pc = useRef(null);
+    const channel = useRef(null);
+    const { state } = useLocation();
+    const navigate = useNavigate();
+    const [status, setStatus] = useState('Inizializzazione...');
+    const [isMuted, setIsMuted] = useState(false);
+    const [isVideoOff, setIsVideoOff] = useState(false);
+    const localStream = useRef(null);
+    const [isLocalReady, setIsLocalReady] = useState(false);
+    const [isRemoteReady, setIsRemoteReady] = useState(false);
+    const [pcIsReady, setPcIsReady] = useState(false);
+    const queuedOffer = useRef(null);
+    const isCaller = state?.isCaller;
 
-  const { familyGroup, user, remoteUserId } = state || {};
+    const { familyGroup, user, remoteUserId } = state || {};
 
-  useEffect(() => {
-    if (!familyGroup || !user || !remoteUserId) {
-      navigate('/pagina2-family-chat');
-      return;
-    }
+    // Helper per creare un'istanza RTCPeerConnection
+    const createPeerConnection = async () => {
+        try {
+            console.log("Creazione PeerConnection...");
+            pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+            
+            pc.current.onicecandidate = (e) => {
+                if (e.candidate) {
+                    console.log("Inviato ICE candidate.");
+                    channel.current.send({
+                        type: 'broadcast',
+                        event: 'webrtc-signal',
+                        payload: {
+                            senderId: user.id,
+                            type: 'ice-candidate',
+                            candidate: e.candidate,
+                        },
+                    });
+                }
+            };
 
-    pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+            pc.current.ontrack = (e) => {
+                console.log("Ricevuto track remoto.");
+                if (remoteVideoRef.current && e.streams && e.streams[0]) {
+                    remoteVideoRef.current.srcObject = e.streams[0];
+                }
+            };
 
-    // nome canale identico per entrambe le parti (ordinato)
-    const callChannelName = [user.id, remoteUserId].sort().join('-');
-    channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
+            pc.current.onconnectionstatechange = () => {
+                const s = pc.current.connectionState;
+                console.log(`Stato connessione WebRTC: ${s}`);
+                setStatus(`Stato connessione: ${s}`);
+                if (s === 'disconnected' || s === 'failed') {
+                    console.log("Connessione WebRTC fallita o disconnessa.");
+                    handleHangUp();
+                }
+            };
+            
+            console.log("Acquisizione media locali...");
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            localStream.current = stream;
+            if (localVideoRef.current) {
+                localVideoRef.current.srcObject = stream;
+            }
+            stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
+            setPcIsReady(true);
+            console.log("PeerConnection e media pronti.");
 
-    // Helper: serializza descrizione (solo campi serializzabili)
-    const serializeDesc = (desc) => {
-      if (!desc) return null;
-      return { type: desc.type, sdp: desc.sdp };
-    };
-
-    // Helper: serializza candidato (solo campi necessari)
-    const serializeCandidate = (candidate) => {
-      if (!candidate) return null;
-      // candidate può venire dentro un oggetto RTCIceCandidate; estrai i campi serializzabili
-      return {
-        candidate: candidate.candidate,
-        sdpMid: candidate.sdpMid,
-        sdpMLineIndex: candidate.sdpMLineIndex,
-        // a volte ci sono altri campi, ma questi bastano per ricrearlo
-      };
-    };
-
-    // Normalizza payload ricevuto (alcune versioni del client messaggiano la struttura in modi diversi)
-    const normalizePayload = (incoming) => {
-      if (!incoming) return null;
-      // Se il callback riceve un oggetto con .payload (es: {payload: {...}}), estrai
-      if (incoming.payload) return incoming.payload;
-      return incoming;
-    };
-
-    const setupWebRTC = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-        localVideoRef.current.srcObject = stream;
-        localStream.current = stream;
-
-        // Aggiungo i track al PeerConnection
-        if (pc.current.signalingState === 'closed') {
-          // ricrea la pc se necessario (non dovrebbe succedere spesso)
-          pc.current = new RTCPeerConnection({ iceServers: STUN_SERVERS });
+        } catch (error) {
+            console.error("Errore nell'accesso ai media:", error);
+            setStatus("Errore: Impossibile accedere ai media.");
+            handleHangUp();
         }
+    };
 
-        stream.getTracks().forEach((track) => {
-          try {
-            pc.current.addTrack(track, stream);
-          } catch (err) {
-            console.warn('Impossibile aggiungere track:', err);
-          }
-        });
+    // Gestore per i segnali WebRTC
+    const handleWebRTCSignals = async ({ payload }) => {
+        if (payload.senderId === user.id) return;
+        console.log('Ricevuto segnale WebRTC:', payload.type);
 
-        // ricezione segnali broadcast (offerta/answer/ice)
-        channel.current.on('broadcast', { event: 'webrtc_signal' }, async (raw) => {
-          const payload = normalizePayload(raw);
-          if (!payload) return;
-          // ignora i messaggi che provengono da noi
-          if (payload.senderId === user.id) return;
-
-          try {
-            if (payload.type === 'offer') {
-              setStatus('Ricevuta offerta, connessione in corso...');
-              // Impostiamo la descrizione remota (ricreiamo l'oggetto)
-              const remoteDesc = { type: payload.offer?.type, sdp: payload.offer?.sdp };
-              await pc.current.setRemoteDescription(remoteDesc);
-
-              // Creiamo la risposta
-              const answer = await pc.current.createAnswer();
-              await pc.current.setLocalDescription(answer);
-
-              // Inviamo la risposta
-              channel.current.send({
-                type: 'broadcast',
-                event: 'webrtc_signal',
-                payload: {
-                  senderId: user.id,
-                  type: 'answer',
-                  answer: pc.current.localDescription, // Usiamo l'oggetto completo
-                },
-              });
-
-              // Processa la coda dei candidati dopo aver impostato la descrizione remota
-              while (iceCandidatesQueue.current.length > 0) {
-                const cand = new RTCIceCandidate(iceCandidatesQueue.current.shift());
-                try {
-                  await pc.current.addIceCandidate(cand);
-                } catch (err) {
-                  console.warn('Errore aggiungendo candidato dalla coda dopo offer:', err);
-                }
-              }
-
-            } else if (payload.type === 'answer') {
-              setStatus('Risposta ricevuta, connessione stabilita.');
-              const remoteDesc = { type: payload.answer?.type, sdp: payload.answer?.sdp };
-              await pc.current.setRemoteDescription(remoteDesc);
-
-              // Processa la coda dei candidati dopo aver impostato la descrizione remota
-              while (iceCandidatesQueue.current.length > 0) {
-                const cand = new RTCIceCandidate(iceCandidatesQueue.current.shift());
-                try {
-                  await pc.current.addIceCandidate(cand);
-                } catch (err) {
-                  console.warn('Errore aggiungendo candidato dalla coda dopo answer:', err);
-                }
-              }
-            } else if (payload.type === 'ice-candidate') {
-              const candObj = payload.candidate;
-              if (!candObj) return;
-
-              // Crea un oggetto RTCIceCandidate in modo sicuro
-              const rtcCandidate = new RTCIceCandidate(candObj);
-
-              // Se remoteDescription è impostata, aggiungi subito, altrimenti metti in coda
-              if (pc.current && pc.current.remoteDescription && pc.current.remoteDescription.sdp) {
-                try {
-                  await pc.current.addIceCandidate(rtcCandidate);
-                } catch (err) {
-                  console.warn('Errore aggiungendo candidato (immediato):', err);
-                }
-              } else {
-                iceCandidatesQueue.current.push(rtcCandidate);
-              }
+        if (payload.type === 'ready-for-call') {
+            console.log("L'altro utente è pronto.");
+            setIsRemoteReady(true);
+        } else if (payload.type === 'offer' && !isCaller) {
+            if (pcIsReady) {
+                console.log("PC pronto, accetto l'offerta immediatamente.");
+                await acceptCall(payload.offer);
+            } else {
+                console.log("PC non pronto, metto l'offerta in coda.");
+                queuedOffer.current = payload.offer;
             }
-          } catch (e) {
-            console.error('Errore nella gestione del segnale WebRTC:', e);
-          }
-        });
-
-        // Subscribe al canale
-        await channel.current.subscribe(async (statusStr) => {
-          // statusStr può essere 'SUBSCRIBED' ecc.
-          if (statusStr === 'SUBSCRIBED') {
-            setStatus("Pronto per la chiamata. In attesa dell'altro utente...");
-            // Avvia la chiamata solo se sei il "chiamante" determinato dall'ordine degli id
-            const sortedUserIds = [user.id, remoteUserId].sort();
-            if (sortedUserIds[0] === user.id) {
-              // piccolo delay per dare il tempo di completare subscribe e setTrack
-              setTimeout(() => {
-                initiateCall();
-              }, 800);
-            }
-          }
-        });
-
-        // invio ICE candidates via channel
-        pc.current.onicecandidate = (event) => {
-          if (event.candidate) {
-            const serial = serializeCandidate(event.candidate);
+        } else if (payload.type === 'answer' && isCaller) {
+            console.log("Ricevuta risposta. Imposto remote description.");
+            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            setStatus('Connessione stabilita!');
+        } else if (payload.type === 'ice-candidate') {
+            console.log("Ricevuto ICE candidate.");
             try {
-              channel.current.send({
-                type: 'broadcast',
-                event: 'webrtc_signal',
-                payload: {
-                  senderId: user.id,
-                  type: 'ice-candidate',
-                  candidate: serial,
-                },
-              });
-            } catch (err) {
-              console.warn('Errore inviando candidato:', err);
+                await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+                console.error('Errore aggiungendo ICE candidate:', e);
             }
-          }
-        };
-
-        // quando ricevi stream remoto
-        pc.current.ontrack = (event) => {
-          // assegna lo stream al video remoto (prende il primo streams[0])
-          if (remoteVideoRef.current && event.streams && event.streams[0]) {
-            remoteVideoRef.current.srcObject = event.streams[0];
-            setStatus('Connessione riuscita. Videochiamata in corso.');
-          }
-        };
-
-        // monitor dello stato di connessione per debug/cleanup
-        pc.current.onconnectionstatechange = () => {
-          const s = pc.current.connectionState;
-          if (s === 'failed' || s === 'disconnected' || s === 'closed') {
-            setStatus(`Stato connessione: ${s}`);
-          } else {
-            setStatus(`Stato connessione: ${s}`);
-          }
-        };
-      } catch (error) {
-        console.error("Errore nell'ottenere lo stream o nel setup WebRTC:", error);
-        setStatus("Errore: impossibile avviare la videochiamata. Controlla permessi camera/microfono.");
-      }
+        } else if (payload.type === 'hang-up') {
+            handleHangUp();
+        }
     };
-
+    
+    // Inizia la chiamata (solo per il chiamante)
     const initiateCall = async () => {
-      try {
-        // controlla che il PeerConnection esista
-        if (!pc.current) {
-          console.warn('PeerConnection non inizializzato');
-          return;
+        try {
+            console.log("Avvio chiamata: creazione offerta...");
+            const offer = await pc.current.createOffer();
+            await pc.current.setLocalDescription(offer);
+            channel.current.send({
+                type: 'broadcast',
+                event: 'webrtc-signal',
+                payload: {
+                    senderId: user.id,
+                    type: 'offer',
+                    offer: pc.current.localDescription,
+                },
+            });
+            setStatus('Offerta inviata, in attesa di risposta...');
+            console.log("Offerta inviata.");
+        } catch (error) {
+            console.error("Errore nella creazione dell'offerta:", error);
+            setStatus("Errore durante l'avvio della chiamata.");
+            handleHangUp();
         }
-
-        // Non creare offerta se non siamo nello stato corretto (ma può essere stabile anche dopo)
-        if (pc.current.signalingState === 'closed') {
-          console.warn('PC chiuso, non posso creare offerta');
-          return;
-        }
-
-        setStatus("Creazione dell'offerta...");
-        const offer = await pc.current.createOffer();
-        await pc.current.setLocalDescription(offer);
-
-        // invio solo campi serializzabili
-        channel.current.send({
-          type: 'broadcast',
-          event: 'webrtc_signal',
-          payload: {
-            senderId: user.id,
-            type: 'offer',
-            offer: serializeDesc(pc.current.localDescription),
-          },
-        });
-      } catch (e) {
-        console.error("Errore nella creazione dell'offerta:", e);
-      }
     };
 
-    setupWebRTC();
+    // Accetta la chiamata (solo per il ricevente)
+    const acceptCall = async (offer) => {
+        try {
+            console.log("Accettazione chiamata: impostazione remote description...");
+            await pc.current.setRemoteDescription(new RTCSessionDescription(offer));
+            console.log("Creazione risposta...");
+            const answer = await pc.current.createAnswer();
+            await pc.current.setLocalDescription(answer);
+            channel.current.send({
+                type: 'broadcast',
+                event: 'webrtc-signal',
+                payload: {
+                    senderId: user.id,
+                    type: 'answer',
+                    answer: pc.current.localDescription,
+                },
+            });
+            setStatus('Risposta inviata, connessione in corso...');
+            console.log("Risposta inviata.");
+        } catch (error) {
+            console.error("Errore nell'accettare l'offerta:", error);
+            setStatus("Errore nell'accettare la chiamata.");
+            handleHangUp();
+        }
+    };
 
-    return () => {
-      // cleanup
-      try {
-        if (localStream.current) {
-          localStream.current.getTracks().forEach((track) => track.stop());
-          localStream.current = null;
+    useEffect(() => {
+        if (!familyGroup || !user || !remoteUserId) {
+            navigate('/pagina2-family-chat');
+            return;
         }
 
-        if (pc.current) {
-          try {
-            pc.current.onicecandidate = null;
-            pc.current.ontrack = null;
-            pc.current.onconnectionstatechange = null;
-            if (pc.current.signalingState !== 'closed') pc.current.close();
-          } catch (err) {
-            console.warn('Errore chiudendo pc:', err);
-          }
-          pc.current = null;
-        }
+        const callChannelName = [user.id, remoteUserId].sort().join('-');
+        channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
 
+        channel.current.on('broadcast', { event: 'webrtc-signal' }, handleWebRTCSignals)
+            .subscribe(async (status) => {
+                if (status === 'SUBSCRIBED') {
+                    console.log('Canale Supabase sottoscritto.');
+                    await createPeerConnection();
+                    // Notifica all'altro utente che sei pronto
+                    console.log("Invio segnale 'ready-for-call'...");
+                    channel.current.send({
+                        type: 'broadcast',
+                        event: 'webrtc-signal',
+                        payload: {
+                            senderId: user.id,
+                            type: 'ready-for-call',
+                        },
+                    });
+                    setIsLocalReady(true);
+                }
+            });
+
+        return () => {
+            if (localStream.current) {
+                localStream.current.getTracks().forEach(track => track.stop());
+            }
+            if (pc.current) {
+                pc.current.close();
+            }
+            if (channel.current) {
+                supabase.removeChannel(channel.current);
+            }
+        };
+    }, [familyGroup, user, remoteUserId, navigate]);
+
+    useEffect(() => {
+        if (isLocalReady && isRemoteReady && isCaller) {
+            console.log("Entrambi gli utenti sono pronti, avvio della chiamata...");
+            initiateCall();
+        }
+    }, [isLocalReady, isRemoteReady, isCaller]);
+
+    useEffect(() => {
+        if (pcIsReady && queuedOffer.current && !isCaller) {
+            console.log("PC pronto e offerta in coda, la processo ora.");
+            acceptCall(queuedOffer.current);
+            queuedOffer.current = null; // Svuota la coda dopo l'elaborazione
+        }
+    }, [pcIsReady, isCaller]);
+
+
+    const handleHangUp = () => {
         if (channel.current) {
-          try {
-            supabase.removeChannel(channel.current);
-          } catch (err) {
-            console.warn('Errore rimuovendo channel:', err);
-          }
-          channel.current = null;
+            channel.current.send({
+                type: 'broadcast',
+                event: 'webrtc-signal',
+                payload: { type: 'hang-up' },
+            });
         }
-      } catch (e) {
-        console.warn('Errore in cleanup:', e);
-      }
+        if (localStream.current) {
+            localStream.current.getTracks().forEach(track => track.stop());
+        }
+        if (pc.current) {
+            pc.current.close();
+        }
+        navigate('/pagina2-family-chat');
     };
-  }, [familyGroup, user, remoteUserId, navigate]);
 
-  const handleToggleMute = () => {
-    if (localStream.current) {
-      const audioTrack = localStream.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !audioTrack.enabled;
-        setIsMuted(!audioTrack.enabled);
-      }
-    }
-  };
+    const handleToggleMute = () => {
+        if (localStream.current) {
+            localStream.current.getAudioTracks().forEach(track => track.enabled = !track.enabled);
+            setIsMuted(prev => !prev);
+        }
+    };
 
-  const handleToggleVideo = () => {
-    if (localStream.current) {
-      const videoTrack = localStream.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !videoTrack.enabled;
-        setIsVideoOff(!videoTrack.enabled);
-      }
-    }
-  };
+    const handleToggleVideo = () => {
+        if (localStream.current) {
+            localStream.current.getVideoTracks().forEach(track => track.enabled = !track.enabled);
+            setIsVideoOff(prev => !prev);
+        }
+    };
 
-  const handleHangUp = () => {
-    if (localStream.current) {
-      localStream.current.getTracks().forEach((track) => track.stop());
-      localStream.current = null;
-    }
-    if (pc.current) {
-      try {
-        if (pc.current.signalingState !== 'closed') pc.current.close();
-      } catch (err) {
-        console.warn('Errore chiudendo pc al termine:', err);
-      }
-      pc.current = null;
-    }
-    if (channel.current) {
-      try {
-        supabase.removeChannel(channel.current);
-      } catch (err) {
-        console.warn('Errore rimuovendo channel al termine:', err);
-      }
-      channel.current = null;
-    }
-    navigate('/pagina2-family-chat');
-  };
+    return (
+        <div style={{
+            height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#e5ddd5',
+            fontFamily: 'Arial, sans-serif'
+        }}>
+            <div style={{ padding: '15px', backgroundColor: '#075E54', color: 'white', textAlign: 'center' }}>
+                <h1 style={{ margin: 0, fontSize: '1.5em' }}>Videochiamata Diretta</h1>
+                <div style={{ marginTop: '5px', fontSize: '1em' }}>{status}</div>
+            </div>
 
-  return (
-    <div style={{ height: '100vh', backgroundColor: '#e5ddd5', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ padding: '15px 20px', backgroundColor: '#075E54', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', color: 'white', zIndex: 1000 }}>
-        <h1 style={{ margin: 0 }}>📞 Chiamata Diretta</h1>
-        <div style={{ fontSize: '0.9em', opacity: 0.8, marginTop: '5px' }}>
-          Stato: {status}
+            <div style={{ flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                <video ref={remoteVideoRef} autoPlay playsInline style={{
+                    width: '100%', height: '100%', objectFit: 'cover',
+                    backgroundColor: '#333', transform: 'scaleX(-1)'
+                }} />
+
+                <video ref={localVideoRef} autoPlay playsInline muted style={{
+                    position: 'absolute', bottom: '20px', right: '20px', width: '120px',
+                    height: '90px', borderRadius: '15px', border: '3px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
+                    objectFit: 'cover', transform: 'scaleX(-1)'
+                }} />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px', backgroundColor: '#075E54', boxShadow: '0 -2px 10px rgba(0,0,0,0.1)', zIndex: 1000 }}>
+                <button onClick={handleToggleMute} style={{
+                    width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    backgroundColor: isMuted ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>{isMuted ? '🔇' : '🎤'}</button>
+
+                <button onClick={handleToggleVideo} style={{
+                    width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    backgroundColor: isVideoOff ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>{isVideoOff ? '📷' : '📹'}</button>
+
+                <button onClick={handleHangUp} style={{
+                    width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+                    backgroundColor: '#ff4d4f', color: 'white', fontSize: '24px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>📞</button>
+            </div>
         </div>
-      </div>
-
-      <div style={{ flex: 1, position: 'relative' }}>
-        <video ref={remoteVideoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        <video ref={localVideoRef} autoPlay playsInline muted style={{
-          position: 'absolute', bottom: '20px', right: '20px', width: '150px', height: '150px',
-          borderRadius: '15px', border: '3px solid white', boxShadow: '0 4px 10px rgba(0,0,0,0.3)',
-          objectFit: 'cover', transform: 'scaleX(-1)'
-        }} />
-      </div>
-
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px', backgroundColor: '#075E54', boxShadow: '0 -2px 10px rgba(0,0,0,0.1)', zIndex: 1000 }}>
-        <button onClick={handleToggleMute} style={{
-          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-          backgroundColor: isMuted ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>{isMuted ? '🔇' : '🎤'}</button>
-
-        <button onClick={handleToggleVideo} style={{
-          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-          backgroundColor: isVideoOff ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>{isVideoOff ? '📷' : '📹'}</button>
-
-        <button onClick={handleHangUp} style={{
-          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
-          backgroundColor: '#ff4d4f', color: 'white', fontSize: '24px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>📞</button>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default DirectVideoChat;

@@ -1,0 +1,103 @@
+/* Layout a tre strati: header, contenuto scorrevole e footer fissi */
+.app-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  max-width: 800px;
+  margin: 0 auto;
+  background-color: var(--surface-color);
+  box-shadow: var(--shadow);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+}
+
+/* Header ottimizzato per mobile */
+.header {
+  padding: 16px; /* Riduci il padding */
+  text-align: center;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: var(--primary-color);
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: sticky; /* Rende l'header fisso in alto */
+  top: 0;
+  z-index: 20; /* Assicura che sia sopra gli altri elementi */
+}
+
+.header h1 {
+  font-size: 1.8em; /* Riduci la dimensione del titolo */
+  margin: 0 0 4px;
+}
+
+.header p {
+  font-size: 0.9em;
+  margin: 0;
+}
+
+/* Contenuto principale con scrolling */
+.scrollable-content {
+  flex-grow: 1; /* Occupa tutto lo spazio rimanente */
+  overflow-y: auto; /* Abilita lo scrolling verticale */
+  -webkit-overflow-scrolling: touch; /* Migliora lo scrolling su iOS */
+  padding: 16px; /* Riduci il padding per ottimizzare lo spazio */
+}
+
+/* Footer fisso in basso */
+.footer {
+  padding: 12px 16px; /* Riduci il padding */
+  text-align: center;
+  border-top: 1px solid #e0e0e0;
+  background-color: var(--surface-color);
+  position: sticky; /* Rende il footer fisso in basso */
+  bottom: 0;
+  z-index: 20;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05); /* Aggiungi un'ombra */
+}
+
+/* Pulsanti per il layout mobile */
+.tab-buttons {
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.tab-button {
+  padding: 8px 14px;
+  font-size: 0.9em;
+}
+
+.input-group {
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.search-input {
+  padding: 10px;
+}
+
+/* Tabella ottimizzata per mobile */
+.shopping-table-container {
+  overflow-x: auto;
+  margin-bottom: 16px;
+}
+
+.shopping-table thead th {
+  padding: 8px;
+  font-size: 0.9em;
+}
+
+.shopping-table td {
+  padding: 8px;
+  font-size: 0.9em;
+}
+
+.small-input {
+  width: 50px;
+  padding: 6px;
+}
+
+.other-prices-dropdown {
+  font-size: 0.8em;
+}
