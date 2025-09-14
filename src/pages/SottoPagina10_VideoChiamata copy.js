@@ -19,7 +19,6 @@ function VideoCallPage() {
   const pc = useRef(null);
   const channel = useRef(null);
   const localStream = useRef(null);
-  const pendingCandidates = useRef([]); // buffer ICE
 
   const [status, setStatus] = useState('Inizializzazione...');
   const [isMuted, setIsMuted] = useState(false);
@@ -27,14 +26,14 @@ function VideoCallPage() {
 
   const handleHangUp = () => {
     if (channel.current) {
-      channel.current.send({
-        type: 'broadcast',
-        event: 'webrtc-signal',
-        payload: { type: 'hang-up' },
-      });
+        channel.current.send({
+            type: 'broadcast',
+            event: 'webrtc-signal',
+            payload: { type: 'hang-up' },
+        });
     }
     if (localStream.current) {
-      localStream.current.getTracks().forEach(track => track.stop());
+        localStream.current.getTracks().forEach(track => track.stop());
     }
     if (pc.current) pc.current.close();
     navigate('/pagina10-videochiamate');
@@ -42,7 +41,6 @@ function VideoCallPage() {
 
   useEffect(() => {
     let cleanupDone = false;
-
     const initCall = async () => {
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData?.user) {
@@ -55,7 +53,7 @@ function VideoCallPage() {
         navigate('/pagina10-videochiamate');
         return;
       }
-
+      
       const sortedIds = [currentUser.id, remoteUserId].sort();
       const isCaller = sortedIds[0] === currentUser.id;
 
@@ -94,7 +92,6 @@ function VideoCallPage() {
         };
 
         pc.current.onconnectionstatechange = () => {
-          console.log("ConnState:", pc.current.connectionState);
           if (['disconnected', 'failed', 'closed'].includes(pc.current.connectionState)) {
             handleHangUp();
           }
@@ -105,13 +102,14 @@ function VideoCallPage() {
 
         channel.current.on('broadcast', { event: 'webrtc-signal' }, (payload) => {
           handleWebRTCSignals(payload, currentUser.id, isCaller);
+        }).subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            if (isCaller) {
+              createOffer(pc.current, currentUser.id);
+            }
+          }
         });
-
-        const status = await channel.current.subscribe();
-        if (status === 'SUBSCRIBED' && isCaller) {
-          createOffer(pc.current, currentUser.id);
-        }
-
+        
       } catch (error) {
         console.error("Errore nell'inizializzazione della chiamata:", error);
         if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
@@ -156,33 +154,20 @@ function VideoCallPage() {
               },
             });
             setStatus('Risposta inviata, connessione in corso...');
-
-            // flush ICE buffer
-            pendingCandidates.current.forEach(c => pc.current.addIceCandidate(c));
-            pendingCandidates.current = [];
           }
           break;
 
         case 'answer':
           if (isCaller) {
             await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-
-            // flush ICE buffer
-            pendingCandidates.current.forEach(c => pc.current.addIceCandidate(c));
-            pendingCandidates.current = [];
           }
           break;
 
         case 'ice-candidate':
-          const candidate = new RTCIceCandidate(payload.candidate);
-          if (pc.current.remoteDescription) {
-            try {
-              await pc.current.addIceCandidate(candidate);
-            } catch (err) {
-              console.error('Errore ICE:', err);
-            }
-          } else {
-            pendingCandidates.current.push(candidate);
+          try {
+            await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } catch (err) {
+            console.error('Errore ICE:', err);
           }
           break;
 
@@ -194,14 +179,14 @@ function VideoCallPage() {
           break;
       }
     };
-
+    
     initCall();
 
     return () => {
-      cleanupDone = true;
-      if (localStream.current) localStream.current.getTracks().forEach(track => track.stop());
-      if (pc.current) pc.current.close();
-      if (channel.current) supabase.removeChannel(channel.current);
+        cleanupDone = true;
+        if (localStream.current) localStream.current.getTracks().forEach(track => track.stop());
+        if (pc.current) pc.current.close();
+        if (channel.current) supabase.removeChannel(channel.current);
     };
   }, [remoteUserId, navigate]);
 
