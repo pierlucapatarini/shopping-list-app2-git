@@ -45,6 +45,20 @@ function MainMenu() {
           👩‍🍳 Pagina 3<br />Ricette AI
         </button>
 
+        {/* Pagina 10 - prova videochiamata */}
+        <button
+          onClick={() => navigate('/pagina10-VideoChiamata')}
+          className="menu-button"
+        >
+          👥 Pagina 10<br />prova videochiamata
+        </button>
+
+
+
+
+
+
+
         {/* Pagina 4 - Archivio Prodotti */}
         <button
           onClick={() => navigate('/pagina4-archivio-prodotti')}
@@ -93,14 +107,7 @@ function MainMenu() {
           👥 Pagina 9<br />Gestione Utenti
         </button>
 
-{/* Pagina 10 - prova videochiamata */}
-        <button
-          onClick={() => navigate('/pagina10-VideoChiamata')}
-          className="menu-button"
-        >
-          👥 Pagina 10<br />prova videochiamata
-        </button>
-
+      
 
 
 
