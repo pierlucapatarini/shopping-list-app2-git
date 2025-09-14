@@ -5,8 +5,8 @@ import Auth from './pages/Auth';
 import MainMenu from './pages/MainMenu';
 import Pagina1_ShoppingList from './pages/Pagina1_ShoppingList';
 import Pagina2_FamilyChat from './pages/Pagina2_FamilyChat';
-import SottoPagina2_VideochiamataDiretta from './pages/SottoPagina2_VideochiamataDiretta'; // Importa questo
-import SottoPagina2_VideochiamataGruppo from './pages/SottoPagina2_VideochiamataGruppo'; // Importa questo
+import SottoPagina2_VideochiamataDiretta from './pages/SottoPagina2_VideochiamataDiretta';
+import SottoPagina2_VideochiamataGruppo from './pages/SottoPagina2_VideochiamataGruppo';
 import Pagina3_RicetteAI from './pages/Pagina3_RicetteAI';
 import Pagina4_ArchivioProdotti from './pages/Pagina4_ArchivioProdotti';
 import Pagina5_OfferteVolantini from './pages/Pagina5_OfferteVolantini';
@@ -14,9 +14,10 @@ import Pagina6_CalendarioAppuntamenti from './pages/Pagina6_CalendarioAppuntamen
 import Pagina7_GestioneFarmaci from './pages/Pagina7_GestioneFarmaci';
 import Pagina8_ArchivioDocumenti from './pages/Pagina8_ArchivioDocumenti';
 import Pagina9_GestioneUtenti from './pages/Pagina9_GestioneUtenti';
-import DirectVideoChat from './pages/SottoPagina2_VideochiamataDiretta';
 
-
+// Importa i nuovi componenti per la videochiamata
+import Videochiamate from './pages/Pagina10_VideoChiamata';
+import VideoCallPage from './pages/SottoPagina10_VideoChiamata';
 
 function App() {
   const [session, setSession] = useState(null);
@@ -50,8 +51,8 @@ function App() {
         <Route path="/main-menu" element={session ? <MainMenu /> : <Navigate to="/" />} />
         <Route path="/pagina1-shopping-list" element={session ? <Pagina1_ShoppingList /> : <Navigate to="/" />} />
         <Route path="/pagina2-family-chat" element={session ? <Pagina2_FamilyChat /> : <Navigate to="/" />} />
-        <Route path="/video-chat-diretta" element={<SottoPagina2_VideochiamataDiretta />} /> // Aggiungi questa linea
-        <Route path="/video-chat-gruppo" element={<SottoPagina2_VideochiamataGruppo />} /> // Aggiungi questa linea
+        <Route path="/video-chat-diretta" element={<SottoPagina2_VideochiamataDiretta />} />
+        <Route path="/video-chat-gruppo" element={<SottoPagina2_VideochiamataGruppo />} />
         <Route path="/pagina3-ricette-ai" element={session ? <Pagina3_RicetteAI /> : <Navigate to="/" />} />
         <Route path="/pagina4-archivio-prodotti" element={session ? <Pagina4_ArchivioProdotti /> : <Navigate to="/" />} />
         <Route path="/pagina5-offerte-volantini" element={session ? <Pagina5_OfferteVolantini /> : <Navigate to="/" />} />
@@ -59,12 +60,13 @@ function App() {
         <Route path="/pagina7-gestione-farmaci" element={session ? <Pagina7_GestioneFarmaci /> : <Navigate to="/" />} />
         <Route path="/pagina8-archivio-documenti" element={session ? <Pagina8_ArchivioDocumenti /> : <Navigate to="/" />} />
         <Route path="/pagina9-gestione-utenti" element={session ? <Pagina9_GestioneUtenti /> : <Navigate to="/" />} />
-        <Route path="/direct-video/:remoteUserId" element={<DirectVideoChat />} />
-
+        
+        {/* Rotte della videochiamata (Pagina 10) */}
+        <Route path="/pagina10-VideoChiamata" element={session ? <Videochiamate /> : <Navigate to="/" />} />
+        <Route path="/video-call-page/:remoteUserId" element={session ? <VideoCallPage /> : <Navigate to="/" />} />
       </Routes>
     </Router>
   );
 }
 
 export default App;
-

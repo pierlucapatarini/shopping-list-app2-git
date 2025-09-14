@@ -30,22 +30,6 @@ function DirectVideoChat() {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
-  // Aggiunta handleHangUp fuori da useEffect per renderla accessibile agli handler
-  const handleHangUp = () => {
-    if (channel.current) {
-        channel.current.send({
-            type: 'broadcast',
-            event: 'webrtc-signal',
-            payload: { type: 'hang-up' },
-        });
-    }
-    if (localStream.current) {
-        localStream.current.getTracks().forEach(track => track.stop());
-    }
-    if (pc.current) pc.current.close();
-    navigate('/pagina2-family-chat');
-  };
-
   useEffect(() => {
     let cleanupDone = false;
     const initCall = async () => {
@@ -56,14 +40,14 @@ function DirectVideoChat() {
         return;
       }
       const currentUser = userData.user;
+      const familyGroup = currentUser.user_metadata?.family_group;
 
-      if (!remoteUserId) {
+      if (!remoteUserId || !familyGroup) {
         navigate('/pagina2-family-chat');
         return;
       }
-      
-      const sortedIds = [currentUser.id, remoteUserId].sort();
-      const isCaller = sortedIds[0] === currentUser.id;
+
+      const isCaller = [currentUser.id, remoteUserId].sort()[0] === currentUser.id;
 
       try {
         // 2. Acquisizione videocamera e microfono
@@ -103,12 +87,12 @@ function DirectVideoChat() {
 
         pc.current.onconnectionstatechange = () => {
           if (['disconnected', 'failed'].includes(pc.current.connectionState)) {
-            handleHangUp();
+            handleHangUp(currentUser);
           }
         };
 
         // 4. Connettiti al canale di Supabase
-        const callChannelName = sortedIds.join('-');
+        const callChannelName = [currentUser.id, remoteUserId].sort().join('-');
         channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
 
         channel.current.on('broadcast', { event: 'webrtc-signal' }, (payload) => {
@@ -116,7 +100,6 @@ function DirectVideoChat() {
         }).subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             if (isCaller) {
-              // Se l'utente è il chiamante, crea l'offerta dopo l'iscrizione al canale
               createOffer(pc.current, currentUser.id);
             }
           }
@@ -152,7 +135,7 @@ function DirectVideoChat() {
 
       switch (payload.type) {
         case 'offer':
-          if (!isCaller) { // L'utente è il ricevente, risponde all'offerta
+          if (!isCaller) {
             await pc.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
             const answer = await pc.current.createAnswer();
             await pc.current.setLocalDescription(answer);
@@ -170,7 +153,7 @@ function DirectVideoChat() {
           break;
 
         case 'answer':
-          if (isCaller) { // L'utente è il chiamante, accetta la risposta
+          if (isCaller) {
             await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           }
           break;
@@ -191,7 +174,22 @@ function DirectVideoChat() {
           break;
       }
     };
-    
+
+    const handleHangUp = (currentUser) => {
+        if (channel.current) {
+            channel.current.send({
+                type: 'broadcast',
+                event: 'webrtc-signal',
+                payload: { type: 'hang-up' },
+            });
+        }
+        if (localStream.current) {
+            localStream.current.getTracks().forEach(track => track.stop());
+        }
+        if (pc.current) pc.current.close();
+        navigate('/pagina2-family-chat');
+    };
+
     initCall();
 
     return () => {

@@ -363,41 +363,37 @@ function FamilyChat() {
         setIsCalling(true);
     };
 
-// Pagina2_FamilyChat.js
-// ...
-const handleConfirmCall = async () => {
-    setIsCalling(false);
-    if (!user || !familyGroup || !selectedDirectCallUser) return;
+    const handleConfirmCall = async () => {
+        setIsCalling(false);
+        if (!user || !familyGroup || !selectedDirectCallUser) return;
 
-    // STEP 1: Invia un messaggio automatico nella chat
-    const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
-    const callerUsername = user.user_metadata.username;
+        const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
+        const callerUsername = user.user_metadata.username;
 
-    await supabase
-        .from('messages')
-        .insert({
-            content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
-            family_group: familyGroup,
-            sender_id: user.id,
+        // Step 1: Invia un messaggio automatico nella chat (ora usa l'ID utente valido)
+        await supabase
+            .from('messages')
+            .insert({
+                content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
+                family_group: familyGroup,
+                sender_id: user.id, // Corretto: ora usa l'ID dell'utente corrente
+            });
+
+        // Step 2: Invia il segnale di chiamata tramite broadcast
+        const channel = supabase.channel(`direct-call-signal-${familyGroup}`);
+        await channel.subscribe();
+        channel.send({
+            type: 'broadcast',
+            event: 'direct-call-signal',
+            payload: {
+                senderId: user.id,
+                recipientId: selectedDirectCallUser,
+            }
         });
-
-    // STEP 2: Invia un segnale di notifica al destinatario
-    // Non inviare qui l'offerta WebRTC. La invierà la pagina della videochiamata.
-    const channel = supabase.channel(`direct-video-chat-${selectedDirectCallUser}`);
-    await channel.subscribe();
-    channel.send({
-        type: 'broadcast',
-        event: 'call-notification', // Usa un evento specifico per la notifica
-        payload: {
-            senderId: user.id,
-            recipientId: selectedDirectCallUser,
-        }
-    });
-
-    // STEP 3: Reindirizza il chiamante alla pagina della videochiamata
-    navigate(`/video-chat-diretta/${selectedDirectCallUser}`);
-};
-// ...
+        
+        // Step 3: Reindirizza il chiamante alla pagina della chiamata
+        navigate('/video-chat-diretta', { state: { familyGroup, user, remoteUserId: selectedDirectCallUser, isCaller: true } });
+    };
 
     const handleCancelCall = () => {
         setIsCalling(false);
@@ -405,7 +401,9 @@ const handleConfirmCall = async () => {
 
     const handleAcceptCall = () => {
         setIncomingCall(null);
-        navigate(`/video-chat-diretta/${incomingCall.callerId}`);
+        navigate('/video-chat-diretta', {
+            state: { familyGroup, user, remoteUserId: incomingCall.callerId, isCaller: false }
+        });
     };
 
     const handleRejectCall = () => {

@@ -6,17 +6,11 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    // Aggiungi un server TURN per l'uso in produzione
-    // {
-    //   urls: 'turn:YOUR_TURN_SERVER_URL:3478',
-    //   username: 'YOUR_TURN_USERNAME',
-    //   credential: 'YOUR_TURN_CREDENTIAL'
-    // }
   ],
   iceCandidatePoolSize: 10,
 };
 
-function DirectVideoChat() {
+function VideoCallPage() {
   const { remoteUserId } = useParams();
   const navigate = useNavigate();
 
@@ -30,7 +24,6 @@ function DirectVideoChat() {
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
 
-  // Aggiunta handleHangUp fuori da useEffect per renderla accessibile agli handler
   const handleHangUp = () => {
     if (channel.current) {
         channel.current.send({
@@ -43,22 +36,22 @@ function DirectVideoChat() {
         localStream.current.getTracks().forEach(track => track.stop());
     }
     if (pc.current) pc.current.close();
-    navigate('/pagina2-family-chat');
+    // Reindirizza alla pagina principale della videochiamata
+    navigate('/pagina10-videochiamate');
   };
 
   useEffect(() => {
     let cleanupDone = false;
     const initCall = async () => {
-      // 1. Carica l'utente attuale e i dati necessari
       const { data: userData, error: userError } = await supabase.auth.getUser();
       if (userError || !userData?.user) {
-        navigate('/pagina2-family-chat');
+        navigate('/');
         return;
       }
       const currentUser = userData.user;
 
       if (!remoteUserId) {
-        navigate('/pagina2-family-chat');
+        navigate('/pagina10-videochiamate');
         return;
       }
       
@@ -66,7 +59,6 @@ function DirectVideoChat() {
       const isCaller = sortedIds[0] === currentUser.id;
 
       try {
-        // 2. Acquisizione videocamera e microfono
         setStatus("Acquisizione videocamera e microfono...");
         const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
         if (cleanupDone) return;
@@ -76,7 +68,6 @@ function DirectVideoChat() {
           localVideoRef.current.srcObject = stream;
         }
 
-        // 3. Crea la connessione WebRTC
         pc.current = new RTCPeerConnection(ICE_SERVERS);
         stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
 
@@ -102,21 +93,19 @@ function DirectVideoChat() {
         };
 
         pc.current.onconnectionstatechange = () => {
-          if (['disconnected', 'failed'].includes(pc.current.connectionState)) {
+          if (['disconnected', 'failed', 'closed'].includes(pc.current.connectionState)) {
             handleHangUp();
           }
         };
 
-        // 4. Connettiti al canale di Supabase
         const callChannelName = sortedIds.join('-');
-        channel.current = supabase.channel(`direct-video-chat-${callChannelName}`);
+        channel.current = supabase.channel(`direct-video-call-${callChannelName}`);
 
         channel.current.on('broadcast', { event: 'webrtc-signal' }, (payload) => {
           handleWebRTCSignals(payload, currentUser.id, isCaller);
         }).subscribe((status) => {
           if (status === 'SUBSCRIBED') {
             if (isCaller) {
-              // Se l'utente è il chiamante, crea l'offerta dopo l'iscrizione al canale
               createOffer(pc.current, currentUser.id);
             }
           }
@@ -152,7 +141,7 @@ function DirectVideoChat() {
 
       switch (payload.type) {
         case 'offer':
-          if (!isCaller) { // L'utente è il ricevente, risponde all'offerta
+          if (!isCaller) {
             await pc.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
             const answer = await pc.current.createAnswer();
             await pc.current.setLocalDescription(answer);
@@ -170,7 +159,7 @@ function DirectVideoChat() {
           break;
 
         case 'answer':
-          if (isCaller) { // L'utente è il chiamante, accetta la risposta
+          if (isCaller) {
             await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
           }
           break;
@@ -222,7 +211,7 @@ function DirectVideoChat() {
       fontFamily: 'Arial, sans-serif'
     }}>
       <div style={{ padding: '15px', backgroundColor: '#075E54', color: 'white', textAlign: 'center' }}>
-        <h1 style={{ margin: 0, fontSize: '1.5em' }}>Videochiamata Diretta</h1>
+        <h1 style={{ margin: 0, fontSize: '1.5em' }}>Videochiamata</h1>
         <div style={{ marginTop: '5px', fontSize: '1em' }}>{status}</div>
       </div>
 
@@ -266,4 +255,4 @@ function DirectVideoChat() {
   );
 }
 
-export default DirectVideoChat;
+export default VideoCallPage;
