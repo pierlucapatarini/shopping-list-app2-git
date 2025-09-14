@@ -33,7 +33,7 @@ export default function Pagina1_ShoppingList() {
   const [showOtherPrices, setShowOtherPrices] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
   const [isListening, setIsListening] = useState(false);
-  const [showFullList, setShowFullList] = useState(false); // Changed default state to false
+  const [showFullList, setShowFullList] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -65,13 +65,11 @@ export default function Pagina1_ShoppingList() {
 
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    
     let filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
 
     if (mode === "preferiti") {
       filteredProdotti = filteredProdotti.filter(p => p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1");
       
-      // Ordina prima per categoria, poi per articolo
       filteredProdotti.sort((a, b) => {
         const catA = findCategory(a.categoria_id)?.name || '';
         const catB = findCategory(b.categoria_id)?.name || '';
@@ -88,7 +86,6 @@ export default function Pagina1_ShoppingList() {
       return filteredProdotti.filter(p => p.articolo.toLowerCase().includes(q));
     }
     
-    // Logica di ricerca normale
     if (!q) return [];
 
     return filteredProdotti.filter(p =>
@@ -231,7 +228,6 @@ export default function Pagina1_ShoppingList() {
 
   return (
     <div className="app-layout">
-      {/* Header */}
       <div className={`header ${!showFullList ? 'header-mobile-compact' : ''}`}>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
           <FaBars /> Ritorna al menu
@@ -241,9 +237,7 @@ export default function Pagina1_ShoppingList() {
       </div>
 
       <div className="scrollable-content">
-        {/* Controlli sempre visibili */}
         <div className="controls-container">
-          {/* Sezione per i supermercati, visibile solo nella lista completa */}
           {showFullList && (
             <>
               <div className="info-box">
@@ -264,9 +258,8 @@ export default function Pagina1_ShoppingList() {
             </>
           )}
 
-          {/* Sezione per le modalità, ora sempre visibile */}
           <div className="info-box">
-            <h2>Modalità Inserimento </h2>
+            <h2>Modalità Inserimento</h2>
           </div>
           <div className="tab-buttons">
             {MODES.map(m => (
@@ -281,7 +274,6 @@ export default function Pagina1_ShoppingList() {
           </div>
         </div>
 
-        {/* Barra ricerca e vocale sempre visibile in modalità vocale */}
         {mode !== 'ricette' && (
           <div className="input-group">
             <input
@@ -317,8 +309,7 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
-        {/* Risultati ricerca */}
-        {(mode === 'preferiti' || searchQuery) && mode !== 'ricette' && searchResults.length > 0 && (
+        {(mode === 'preferiti' || (searchQuery.trim() && mode !== 'vocale')) && searchResults.length > 0 && (
           <div className="shopping-table-container">
             <table className="shopping-table">
               <thead>
@@ -351,7 +342,6 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
-        {/* Messaggi vuoti */}
         {mode === 'preferiti' && searchResults.length === 0 && (
           <div className="info-box red">
             Nessun prodotto preferito trovato.
@@ -363,7 +353,6 @@ export default function Pagina1_ShoppingList() {
           </div>
         )}
 
-        {/* Pulsanti vista lista */}
         <div className="button-list-container">
           <button className={`btn-secondary ${!showFullList ? 'active' : ''}`} onClick={() => setShowFullList(false)}>
             Visualizza lista ridotta
@@ -373,7 +362,6 @@ export default function Pagina1_ShoppingList() {
           </button>
         </div>
 
-        {/* Lista della spesa */}
         {shoppingItems.length > 0 && (
           <>
             {showFullList ? (
