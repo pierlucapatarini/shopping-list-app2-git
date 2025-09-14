@@ -64,23 +64,38 @@ export default function Pagina1_ShoppingList() {
   const findCategory = (categoriaIdOrName) => categorie.find(c => c.id === categoriaIdOrName || c.name === categoriaIdOrName) || {};
 
   const searchResults = useMemo(() => {
-    if (mode === "preferiti") {
-      const preferiti = prodotti.filter(p => (p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1") && p.family_group === familyGroup);
-      if (!searchQuery.trim()) return preferiti;
-      const q = searchQuery.trim().toLowerCase();
-      return preferiti.filter(p => p.articolo.toLowerCase().includes(q));
-    }
-
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return [];
+    
+    let filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
 
-    const filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
+    if (mode === "preferiti") {
+      filteredProdotti = filteredProdotti.filter(p => p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1");
+      
+      // Ordina prima per categoria, poi per articolo
+      filteredProdotti.sort((a, b) => {
+        const catA = findCategory(a.categoria_id)?.name || '';
+        const catB = findCategory(b.categoria_id)?.name || '';
+        const articleA = a.articolo.toLowerCase();
+        const articleB = b.articolo.toLowerCase();
+        
+        if (catA < catB) return -1;
+        if (catA > catB) return 1;
+        
+        return articleA.localeCompare(articleB);
+      });
+
+      if (!q) return filteredProdotti;
+      return filteredProdotti.filter(p => p.articolo.toLowerCase().includes(q));
+    }
+    
+    // Logica di ricerca normale
+    if (!q) return [];
 
     return filteredProdotti.filter(p =>
       p.articolo.toLowerCase().includes(q) ||
       (p.descrizione || "").toLowerCase().includes(q)
     );
-  }, [prodotti, searchQuery, mode, familyGroup]);
+  }, [prodotti, searchQuery, mode, familyGroup, categorie]);
 
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -219,7 +234,7 @@ export default function Pagina1_ShoppingList() {
       {/* Header */}
       <div className={`header ${!showFullList ? 'header-mobile-compact' : ''}`}>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
-          <FaBars />
+          <FaBars /> Ritorna al menu
         </button>
         <h1>Lista della Spesa</h1>
         <p>Family's : <strong>{familyGroup || '...'}</strong></p>
@@ -316,7 +331,7 @@ export default function Pagina1_ShoppingList() {
               </thead>
               <tbody>
                 {searchResults.map(p => {
-                  const categoria = findCategory(p.categoria || p.categoria_id);
+                  const categoria = findCategory(p.categoria_id);
                   return (
                     <tr key={p.id || p.articolo}>
                       <td title={p.descrizione}>

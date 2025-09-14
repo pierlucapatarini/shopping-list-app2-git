@@ -14,6 +14,9 @@ import Pagina6_CalendarioAppuntamenti from './pages/Pagina6_CalendarioAppuntamen
 import Pagina7_GestioneFarmaci from './pages/Pagina7_GestioneFarmaci';
 import Pagina8_ArchivioDocumenti from './pages/Pagina8_ArchivioDocumenti';
 import Pagina9_GestioneUtenti from './pages/Pagina9_GestioneUtenti';
+import DirectVideoChat from './pages/SottoPagina2_VideochiamataDiretta';
+
+
 
 function App() {
   const [session, setSession] = useState(null);
@@ -56,6 +59,8 @@ function App() {
         <Route path="/pagina7-gestione-farmaci" element={session ? <Pagina7_GestioneFarmaci /> : <Navigate to="/" />} />
         <Route path="/pagina8-archivio-documenti" element={session ? <Pagina8_ArchivioDocumenti /> : <Navigate to="/" />} />
         <Route path="/pagina9-gestione-utenti" element={session ? <Pagina9_GestioneUtenti /> : <Navigate to="/" />} />
+        <Route path="/direct-video/:remoteUserId" element={<DirectVideoChat />} />
+
       </Routes>
     </Router>
   );
