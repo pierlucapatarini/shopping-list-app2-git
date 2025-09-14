@@ -15,10 +15,9 @@ import Pagina7_GestioneFarmaci from './pages/Pagina7_GestioneFarmaci';
 import Pagina8_ArchivioDocumenti from './pages/Pagina8_ArchivioDocumenti';
 import Pagina9_GestioneUtenti from './pages/Pagina9_GestioneUtenti';
 
-
-import VideoCallPage from './components/VideoCallPage';
-import Videochiamate from './components/Videochiamate'; // Il tuo componente esistente
-
+// Importa i nuovi componenti per la videochiamata
+import Videochiamate from './pages/Pagina10_VideoChiamata';
+import VideoCallPage from './pages/SottoPagina10_VideoChiamata';
 
 
 
@@ -63,20 +62,13 @@ function App() {
         <Route path="/pagina7-gestione-farmaci" element={session ? <Pagina7_GestioneFarmaci /> : <Navigate to="/" />} />
         <Route path="/pagina8-archivio-documenti" element={session ? <Pagina8_ArchivioDocumenti /> : <Navigate to="/" />} />
         <Route path="/pagina9-gestione-utenti" element={session ? <Pagina9_GestioneUtenti /> : <Navigate to="/" />} />
-        <Route path="/video-call-page/:userId" element={<VideoCallPage />} />
-             
-        <Route path="/pagina10-VideoChiamata" element={<Videochiamate />} />
-  
-
-
-
-
-
         
+        {/* Rotte della videochiamata (Pagina 10) */}
+        <Route path="/pagina10-VideoChiamata" element={session ? <Videochiamate /> : <Navigate to="/" />} />
+        <Route path="/video-call-page/:remoteUserId" element={session ? <VideoCallPage /> : <Navigate to="/" />} />
       </Routes>
     </Router>
   );
 }
 
 export default App;
-
