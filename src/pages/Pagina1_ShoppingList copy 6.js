@@ -10,7 +10,7 @@ const SUPERMARKETS = [
   { key: "mercato", label: "Mercato", priceField: "prezzo_mercato", corsiaField: "corsia_mercato", icon: "🍏" },
   { key: "carrefour", label: "Carrefour", priceField: "prezzo_carrefour", corsiaField: "corsia_carrefour", icon: "🇫🇷" },
   { key: "penny", label: "Penny", priceField: "prezzo_penny", corsiaField: "corsia_penny", icon: "💰" },
-  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "prezzo_coop", icon: "🤝" },
+  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "corsia_coop", icon: "🤝" },
 ];
 
 const MODES = [
@@ -64,38 +64,23 @@ export default function Pagina1_ShoppingList() {
   const findCategory = (categoriaIdOrName) => categorie.find(c => c.id === categoriaIdOrName || c.name === categoriaIdOrName) || {};
 
   const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
-    
-    let filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
-
     if (mode === "preferiti") {
-      filteredProdotti = filteredProdotti.filter(p => p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1");
-      
-      // Ordina prima per categoria, poi per articolo
-      filteredProdotti.sort((a, b) => {
-        const catA = findCategory(a.categoria_id)?.name || '';
-        const catB = findCategory(b.categoria_id)?.name || '';
-        const articleA = a.articolo.toLowerCase();
-        const articleB = b.articolo.toLowerCase();
-        
-        if (catA < catB) return -1;
-        if (catA > catB) return 1;
-        
-        return articleA.localeCompare(articleB);
-      });
-
-      if (!q) return filteredProdotti;
-      return filteredProdotti.filter(p => p.articolo.toLowerCase().includes(q));
+      const preferiti = prodotti.filter(p => (p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1") && p.family_group === familyGroup);
+      if (!searchQuery.trim()) return preferiti;
+      const q = searchQuery.trim().toLowerCase();
+      return preferiti.filter(p => p.articolo.toLowerCase().includes(q));
     }
-    
-    // Logica di ricerca normale
+
+    const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
+
+    const filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
 
     return filteredProdotti.filter(p =>
       p.articolo.toLowerCase().includes(q) ||
       (p.descrizione || "").toLowerCase().includes(q)
     );
-  }, [prodotti, searchQuery, mode, familyGroup, categorie]);
+  }, [prodotti, searchQuery, mode, familyGroup]);
 
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -111,10 +96,22 @@ export default function Pagina1_ShoppingList() {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => setIsListening(true);
-    recognition.onresult = (event) => {
+    recognition.onresult = async (event) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
       setIsListening(false);
+
+      if (mode === 'vocale') {
+        const q = transcript.trim().toLowerCase();
+        const foundProduct = prodotti.find(p => p.articolo.toLowerCase().includes(q) && p.family_group === familyGroup);
+        if (foundProduct) {
+          await addProductToShopping(foundProduct);
+          window.alert(`Prodotto "${foundProduct.articolo}" aggiunto alla lista.`);
+          setSearchQuery("");
+        } else {
+          window.alert(`Nessun prodotto trovato con il nome "${transcript}".`);
+        }
+      }
     };
     recognition.onerror = (event) => {
       console.error('Errore riconoscimento vocale:', event.error);
@@ -156,6 +153,8 @@ export default function Pagina1_ShoppingList() {
 
     const { data } = await supabase.from("shopping_items").insert([newItem]).select();
     if (data) setShoppingItems(s => [...s, ...data]);
+
+    if (mode !== "vocale") setSearchQuery("");
   }
 
   async function handleUpdateShoppingItem(id, patch) {
@@ -234,7 +233,7 @@ export default function Pagina1_ShoppingList() {
       {/* Header */}
       <div className={`header ${!showFullList ? 'header-mobile-compact' : ''}`}>
         <button onClick={() => navigate('/main-menu')} className="btn-secondary">
-          <FaBars /> Ritorna al menu
+          <FaBars />
         </button>
         <h1>Lista della Spesa</h1>
         <p>Family's : <strong>{familyGroup || '...'}</strong></p>
@@ -331,7 +330,7 @@ export default function Pagina1_ShoppingList() {
               </thead>
               <tbody>
                 {searchResults.map(p => {
-                  const categoria = findCategory(p.categoria_id);
+                  const categoria = findCategory(p.categoria || p.categoria_id);
                   return (
                     <tr key={p.id || p.articolo}>
                       <td title={p.descrizione}>
@@ -357,13 +356,13 @@ export default function Pagina1_ShoppingList() {
             Nessun prodotto preferito trovato.
           </div>
         )}
-        {mode !== 'preferiti' && searchQuery && searchResults.length === 0 && (
+        {mode === 'vocale' && searchQuery && searchResults.length === 0 && (
           <div className="info-box red">
             Nessun prodotto trovato con "{searchQuery}".
           </div>
         )}
 
-        {/* Pulsanti vista lista */}
+        {/* Pulsanti vista lista - INVERTITI */}
         <div className="button-list-container">
           <button className={`btn-secondary ${!showFullList ? 'active' : ''}`} onClick={() => setShowFullList(false)}>
             Visualizza lista ridotta

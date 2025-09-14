@@ -10,14 +10,14 @@ const SUPERMARKETS = [
   { key: "mercato", label: "Mercato", priceField: "prezzo_mercato", corsiaField: "corsia_mercato", icon: "🍏" },
   { key: "carrefour", label: "Carrefour", priceField: "prezzo_carrefour", corsiaField: "corsia_carrefour", icon: "🇫🇷" },
   { key: "penny", label: "Penny", priceField: "prezzo_penny", corsiaField: "corsia_penny", icon: "💰" },
-  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "corsia_coop", icon: "🤝" },
+  { key: "coop", label: "Coop", priceField: "prezzo_coop", corsiaField: "prezzo_coop", icon: "🤝" },
 ];
 
 const MODES = [
-  { key: "archivio", label: "Archivio", icon: "📚" },
-  { key: "preferiti", label: "Preferiti", icon: "⭐️" },
+  { key: "archivio", label: "Digitare", icon: "📚" },
+  { key: "preferiti", label: "Lista Preferiti", icon: "⭐️" },
   { key: "vocale", label: "Comando Vocale", icon: "🎤" },
-  { key: "ricette", label: "Ricette", icon: "👩‍🍳" },
+  { key: "ricette", label: "Ricette AI", icon: "👩‍🍳" },
 ];
 
 export default function Pagina1_ShoppingList() {
@@ -33,7 +33,7 @@ export default function Pagina1_ShoppingList() {
   const [showOtherPrices, setShowOtherPrices] = useState(null);
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
   const [isListening, setIsListening] = useState(false);
-  const [showFullList, setShowFullList] = useState(true);
+  const [showFullList, setShowFullList] = useState(false); // Changed default state to false
 
   useEffect(() => {
     async function loadProfile() {
@@ -96,22 +96,10 @@ export default function Pagina1_ShoppingList() {
     recognition.maxAlternatives = 1;
 
     recognition.onstart = () => setIsListening(true);
-    recognition.onresult = async (event) => {
+    recognition.onresult = (event) => {
       const transcript = event.results[0][0].transcript;
       setSearchQuery(transcript);
       setIsListening(false);
-
-      if (mode === 'vocale') {
-        const q = transcript.trim().toLowerCase();
-        const foundProduct = prodotti.find(p => p.articolo.toLowerCase().includes(q) && p.family_group === familyGroup);
-        if (foundProduct) {
-          await addProductToShopping(foundProduct);
-          window.alert(`Prodotto "${foundProduct.articolo}" aggiunto alla lista.`);
-          setSearchQuery("");
-        } else {
-          window.alert(`Nessun prodotto trovato con il nome "${transcript}".`);
-        }
-      }
     };
     recognition.onerror = (event) => {
       console.error('Errore riconoscimento vocale:', event.error);
@@ -143,7 +131,7 @@ export default function Pagina1_ShoppingList() {
       categoria: categoriaName,
       prodotto_id: prod.id || null,
       family_group: familyGroup,
-      created_at: new Date().toISOString(),
+      
       prezzo_esselunga: prod.prezzo_esselunga,
       prezzo_mercato: prod.prezzo_mercato,
       prezzo_carrefour: prod.prezzo_carrefour,
@@ -153,8 +141,6 @@ export default function Pagina1_ShoppingList() {
 
     const { data } = await supabase.from("shopping_items").insert([newItem]).select();
     if (data) setShoppingItems(s => [...s, ...data]);
-
-    if (mode !== "vocale") setSearchQuery("");
   }
 
   async function handleUpdateShoppingItem(id, patch) {
@@ -236,7 +222,7 @@ export default function Pagina1_ShoppingList() {
           <FaBars />
         </button>
         <h1>Lista della Spesa</h1>
-        <p>Gruppo: <strong>{familyGroup || '...'}</strong></p>
+        <p>Family's : <strong>{familyGroup || '...'}</strong></p>
       </div>
 
       <div className="scrollable-content">
@@ -265,8 +251,7 @@ export default function Pagina1_ShoppingList() {
 
           {/* Sezione per le modalità, ora sempre visibile */}
           <div className="info-box">
-            <h2>Modalità Inserimento</h2>
-            <p>Scegli come aggiungere prodotti alla lista.</p>
+            <h2>Modalità Inserimento </h2>
           </div>
           <div className="tab-buttons">
             {MODES.map(m => (
@@ -292,7 +277,7 @@ export default function Pagina1_ShoppingList() {
                   ? 'Cerca nei preferiti...'
                   : mode === 'vocale'
                     ? 'Parla per cercare...'
-                    : 'Cerca un prodotto...'
+                    : 'Cerca un prodotto digitando ...'
               }
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -357,7 +342,7 @@ export default function Pagina1_ShoppingList() {
             Nessun prodotto preferito trovato.
           </div>
         )}
-        {mode === 'vocale' && searchQuery && searchResults.length === 0 && (
+        {mode !== 'preferiti' && searchQuery && searchResults.length === 0 && (
           <div className="info-box red">
             Nessun prodotto trovato con "{searchQuery}".
           </div>
@@ -365,11 +350,11 @@ export default function Pagina1_ShoppingList() {
 
         {/* Pulsanti vista lista */}
         <div className="button-list-container">
-          <button className={`btn-secondary ${showFullList ? 'active' : ''}`} onClick={() => setShowFullList(true)}>
-            Visualizza lista completa
-          </button>
           <button className={`btn-secondary ${!showFullList ? 'active' : ''}`} onClick={() => setShowFullList(false)}>
             Visualizza lista ridotta
+          </button>
+          <button className={`btn-secondary ${showFullList ? 'active' : ''}`} onClick={() => setShowFullList(true)}>
+            Visualizza lista completa
           </button>
         </div>
 
