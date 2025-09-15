@@ -109,13 +109,19 @@ function FamilyChat() {
                         }
                     )
                     .on('broadcast', { event: 'direct-call-signal' }, ({ payload }) => {
+                        console.log('Ricevuto broadcast direct-call-signal:', payload); // Debug: verifica il payload ricevuto
                         if (payload.recipientId === user.id && payload.senderId !== user.id) {
                             const callerUsername = familyMembers.find(m => m.id === payload.senderId)?.username;
                             setIncomingCall({
                                 callerId: payload.senderId,
                                 callerUsername,
                             });
-                            new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3').play();
+                            try {
+                                const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+                                audio.play().catch(e => console.error("Errore riproduzione audio:", e));
+                            } catch (e) {
+                                console.error("Errore creazione oggetto Audio:", e);
+                            }
                         }
                     })
                     .subscribe((status) => {
@@ -357,38 +363,41 @@ function FamilyChat() {
         setIsCalling(true);
     };
 
-    const handleConfirmCall = async () => {
-        setIsCalling(false);
-        if (!user || !familyGroup || !selectedDirectCallUser) return;
+// Pagina2_FamilyChat.js
+// ...
+const handleConfirmCall = async () => {
+    setIsCalling(false);
+    if (!user || !familyGroup || !selectedDirectCallUser) return;
 
-        const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
-        const callerUsername = user.user_metadata.username;
+    // STEP 1: Invia un messaggio automatico nella chat
+    const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
+    const callerUsername = user.user_metadata.username;
 
-        // Step 1: Invia un messaggio automatico nella chat (ora usa l'ID utente valido)
-        await supabase
-            .from('messages')
-            .insert({
-                content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
-                family_group: familyGroup,
-                sender_id: user.id, // Corretto: ora usa l'ID dell'utente corrente
-            });
-
-        // Step 2: Invia il segnale di chiamata tramite broadcast
-        const channel = supabase.channel(`messages-${familyGroup}`);
-        await channel.subscribe();
-        channel.send({
-            type: 'broadcast',
-            event: 'direct-call-signal',
-            payload: {
-                senderId: user.id,
-                recipientId: selectedDirectCallUser,
-                callUrl: `/video-chat-diretta`
-            }
+    await supabase
+        .from('messages')
+        .insert({
+            content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
+            family_group: familyGroup,
+            sender_id: user.id,
         });
-        
-        // Step 3: Reindirizza il chiamante alla pagina della chiamata
-        navigate('/video-chat-diretta', { state: { familyGroup, user, remoteUserId: selectedDirectCallUser, isCaller: true } });
-    };
+
+    // STEP 2: Invia un segnale di notifica al destinatario
+    // Non inviare qui l'offerta WebRTC. La invierà la pagina della videochiamata.
+    const channel = supabase.channel(`direct-video-chat-${selectedDirectCallUser}`);
+    await channel.subscribe();
+    channel.send({
+        type: 'broadcast',
+        event: 'call-notification', // Usa un evento specifico per la notifica
+        payload: {
+            senderId: user.id,
+            recipientId: selectedDirectCallUser,
+        }
+    });
+
+    // STEP 3: Reindirizza il chiamante alla pagina della videochiamata
+    navigate(`/video-chat-diretta/${selectedDirectCallUser}`);
+};
+// ...
 
     const handleCancelCall = () => {
         setIsCalling(false);
@@ -396,9 +405,7 @@ function FamilyChat() {
 
     const handleAcceptCall = () => {
         setIncomingCall(null);
-        navigate('/video-chat-diretta', {
-            state: { familyGroup, user, remoteUserId: incomingCall.callerId, isCaller: false }
-        });
+        navigate(`/video-chat-diretta/${incomingCall.callerId}`);
     };
 
     const handleRejectCall = () => {
@@ -456,7 +463,7 @@ function FamilyChat() {
                                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                                 transition: 'all 0.3s ease', opacity: selectedDirectCallUser ? 1 : 0.6
                             }}>
-                            📞 Diretta
+                            📞 Singolo
                         </button>
                     </div>
                     <button onClick={() => alert('La videochiamata di gruppo non è ancora implementata con una soluzione gratuita.')} 
@@ -466,8 +473,28 @@ function FamilyChat() {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                             transition: 'all 0.3s ease'
                         }}>
-                        🤝 Videochiamata di gruppo
+                        📞 Gruppo
                     </button>
+
+                     
+                    <button onClick={() => navigate('/video-chat-diretta')} 
+                        style={{ 
+                            padding: '8px 15px', borderRadius: '20px', backgroundColor: '#128C7E',
+                            color: 'white', border: 'none', cursor: 'pointer', width: '100%',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
+                            transition: 'all 0.3s ease'
+                        }}>
+                        ← SottoPagina2Videochiamata
+                    </button>
+
+
+
+
+
+
+
+
+                    
                     <button onClick={() => navigate('/main-menu')} 
                         style={{ 
                             padding: '8px 15px', borderRadius: '20px', backgroundColor: '#128C7E',
@@ -475,8 +502,12 @@ function FamilyChat() {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                             transition: 'all 0.3s ease'
                         }}>
-                        ← RitornoMenuPrincipale
+                        ← Menu
                     </button>
+
+
+
+
                 </div>
             </div>
 

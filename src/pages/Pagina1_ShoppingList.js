@@ -14,7 +14,7 @@ const SUPERMARKETS = [
 ];
 
 const MODES = [
-  { key: "archivio", label: "Digitare", icon: "📚" },
+  { key: "archivio", label: "Digitare/Visualizza Lista ", icon: "📚" },
   { key: "preferiti", label: "Lista Preferiti", icon: "⭐️" },
   { key: "vocale", label: "Comando Vocale", icon: "🎤" },
   { key: "ricette", label: "Ricette AI", icon: "👩‍🍳" },
@@ -34,6 +34,36 @@ export default function Pagina1_ShoppingList() {
   const [sortConfig, setSortConfig] = useState({ key: null, ascending: true });
   const [isListening, setIsListening] = useState(false);
   const [showFullList, setShowFullList] = useState(false); // Changed default state to false
+
+// Funzione per calcolare la somiglianza tra due stringhe
+const calculateSimilarity = (word1, word2) => {
+  const s1 = word1.toLowerCase().trim();
+  const s2 = word2.toLowerCase().trim();
+  const len1 = s1.length;
+  const len2 = s2.length;
+  const matrix = [];
+
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [i];
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0][j] = j;
+  }
+
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      const cost = s1[i - 1] === s2[j - 1] ? 0 : 1;
+      matrix[i][j] = Math.min(
+        matrix[i - 1][j] + 1,
+        matrix[i][j - 1] + 1,
+        matrix[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return 1 - (matrix[len1][len2] / Math.max(len1, len2));
+};
+
 
   useEffect(() => {
     async function loadProfile() {
@@ -63,39 +93,44 @@ export default function Pagina1_ShoppingList() {
 
   const findCategory = (categoriaIdOrName) => categorie.find(c => c.id === categoriaIdOrName || c.name === categoriaIdOrName) || {};
 
-  const searchResults = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
     
+  
+const searchResults = useMemo(() => {
+    // Rimuove l'ultima lettera della stringa di ricerca per gestire singolare/plurale
+    // Esempio: "banana" diventa "banan", "banane" diventa "banan"
+    const q = searchQuery.trim().toLowerCase();
+    const truncatedQuery = q.length > 2 ? q.slice(0, -1) : q;
+
+    // Filtra i prodotti per il gruppo familiare
     let filteredProdotti = prodotti.filter(p => p.family_group === familyGroup);
 
+    // Gestione della modalità "preferiti"
     if (mode === "preferiti") {
-      filteredProdotti = filteredProdotti.filter(p => p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1");
-      
-      // Ordina prima per categoria, poi per articolo
-      filteredProdotti.sort((a, b) => {
-        const catA = findCategory(a.categoria_id)?.name || '';
-        const catB = findCategory(b.categoria_id)?.name || '';
-        const articleA = a.articolo.toLowerCase();
-        const articleB = b.articolo.toLowerCase();
+        filteredProdotti = filteredProdotti.filter(p => p.preferito == true || p.preferito === 1 || p.preferito === "true" || p.preferito === "1");
         
-        if (catA < catB) return -1;
-        if (catA > catB) return 1;
-        
-        return articleA.localeCompare(articleB);
-      });
+        filteredProdotti.sort((a, b) => {
+            const catA = findCategory(a.categoria_id)?.name || '';
+            const catB = findCategory(b.categoria_id)?.name || '';
+            if (catA < catB) return -1;
+            if (catA > catB) return 1;
+            return a.articolo.localeCompare(b.articolo);
+        });
 
-      if (!q) return filteredProdotti;
-      return filteredProdotti.filter(p => p.articolo.toLowerCase().includes(q));
+        if (!q) return filteredProdotti;
+        // La ricerca sui preferiti usa il testo completo per maggiore precisione
+        return filteredProdotti.filter(p => p.articolo.toLowerCase().includes(q) || (p.descrizione || "").toLowerCase().includes(q));
     }
     
-    // Logica di ricerca normale
+    // Se non c'è una query, non mostrare risultati
     if (!q) return [];
-
+    
+    // Logica di ricerca principale per "archivio" e "vocale"
     return filteredProdotti.filter(p =>
-      p.articolo.toLowerCase().includes(q) ||
-      (p.descrizione || "").toLowerCase().includes(q)
+      // Cerca la corrispondenza usando la stringa troncata
+      p.articolo.toLowerCase().includes(truncatedQuery) ||
+      (p.descrizione || "").toLowerCase().includes(truncatedQuery)
     );
-  }, [prodotti, searchQuery, mode, familyGroup, categorie]);
+}, [prodotti, searchQuery, mode, familyGroup, categorie]);
 
   const startVoiceRecognition = () => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {

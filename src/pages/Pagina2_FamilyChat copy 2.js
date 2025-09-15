@@ -14,9 +14,6 @@ function FamilyChat() {
     const [openFileOptionsId, setOpenFileOptionsId] = useState(null);
     const [familyMembers, setFamilyMembers] = useState([]);
     const [onlineMembers, setOnlineMembers] = useState([]);
-    const [selectedDirectCallUser, setSelectedDirectCallUser] = useState('');
-    const [incomingCall, setIncomingCall] = useState(null);
-    const [isCalling, setIsCalling] = useState(false);
     
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
@@ -96,8 +93,6 @@ function FamilyChat() {
                         async (payload) => {
                             if (!payload.new) return;
                             
-                            if (payload.new.sender_id === user.id) return;
-                            
                             const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
                             
                             const newMsg = {
@@ -108,22 +103,6 @@ function FamilyChat() {
                             scrollToBottom();
                         }
                     )
-                    .on('broadcast', { event: 'direct-call-signal' }, ({ payload }) => {
-                        console.log('Ricevuto broadcast direct-call-signal:', payload); // Debug: verifica il payload ricevuto
-                        if (payload.recipientId === user.id && payload.senderId !== user.id) {
-                            const callerUsername = familyMembers.find(m => m.id === payload.senderId)?.username;
-                            setIncomingCall({
-                                callerId: payload.senderId,
-                                callerUsername,
-                            });
-                            try {
-                                const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-                                audio.play().catch(e => console.error("Errore riproduzione audio:", e));
-                            } catch (e) {
-                                console.error("Errore creazione oggetto Audio:", e);
-                            }
-                        }
-                    })
                     .subscribe((status) => {
                         setRealtimeStatus(status);
                     });
@@ -355,61 +334,6 @@ function FamilyChat() {
         return date.toLocaleString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     };
 
-    const handleDirectCall = () => {
-        if (!selectedDirectCallUser || selectedDirectCallUser === user.id) {
-            alert('Per avviare una chiamata diretta, devi selezionare un altro membro della famiglia.');
-            return;
-        }
-        setIsCalling(true);
-    };
-
-    const handleConfirmCall = async () => {
-        setIsCalling(false);
-        if (!user || !familyGroup || !selectedDirectCallUser) return;
-
-        const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
-        const callerUsername = user.user_metadata.username;
-
-        // Step 1: Invia un messaggio automatico nella chat (ora usa l'ID utente valido)
-        await supabase
-            .from('messages')
-            .insert({
-                content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
-                family_group: familyGroup,
-                sender_id: user.id, // Corretto: ora usa l'ID dell'utente corrente
-            });
-
-        // Step 2: Invia il segnale di chiamata tramite broadcast
-        const channel = supabase.channel(`direct-call-signal-${familyGroup}`);
-        await channel.subscribe();
-        channel.send({
-            type: 'broadcast',
-            event: 'direct-call-signal',
-            payload: {
-                senderId: user.id,
-                recipientId: selectedDirectCallUser,
-            }
-        });
-        
-        // Step 3: Reindirizza il chiamante alla pagina della chiamata
-        navigate('/video-chat-diretta', { state: { familyGroup, user, remoteUserId: selectedDirectCallUser, isCaller: true } });
-    };
-
-    const handleCancelCall = () => {
-        setIsCalling(false);
-    };
-
-    const handleAcceptCall = () => {
-        setIncomingCall(null);
-        navigate('/video-chat-diretta', {
-            state: { familyGroup, user, remoteUserId: incomingCall.callerId, isCaller: false }
-        });
-    };
-
-    const handleRejectCall = () => {
-        setIncomingCall(null);
-    };
-
     return (
         <div style={{ height: '100vh', backgroundColor: '#e5ddd5', fontFamily: 'Arial, sans-serif', display: 'flex', flexDirection: 'column',
             backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cg fill-opacity='0.03'%3E%3Cpolygon fill='%23000' points='50 0 60 40 100 50 60 60 50 100 40 60 0 50 40 40'/%3E%3C/g%3E%3C/svg%3E")`
@@ -446,33 +370,6 @@ function FamilyChat() {
                     </div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '250px', alignItems: 'flex-end', marginTop: '10px' }}>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', width: '100%' }}>
-                        <select onChange={(e) => setSelectedDirectCallUser(e.target.value)}
-                            style={{ flex: 1, padding: '8px', borderRadius: '15px', border: 'none', outline: 'none' }}>
-                            <option value="">Seleziona utente...</option>
-                            {familyMembers.filter(m => m.id !== user?.id).map(member => (
-                                <option key={member.id} value={member.id}>{member.username}</option>
-                            ))}
-                        </select>
-                        <button onClick={handleDirectCall} disabled={!selectedDirectCallUser}
-                            style={{ 
-                                padding: '8px 15px', borderRadius: '20px', backgroundColor: '#34B7F1',
-                                color: 'white', border: 'none', cursor: selectedDirectCallUser ? 'pointer' : 'not-allowed',
-                                boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
-                                transition: 'all 0.3s ease', opacity: selectedDirectCallUser ? 1 : 0.6
-                            }}>
-                            📞 Singolo
-                        </button>
-                    </div>
-                    <button onClick={() => alert('La videochiamata di gruppo non è ancora implementata con una soluzione gratuita.')} 
-                        style={{ 
-                            padding: '8px 15px', borderRadius: '20px', backgroundColor: '#87CEEB',
-                            color: 'white', border: 'none', cursor: 'pointer', width: '100%',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
-                            transition: 'all 0.3s ease'
-                        }}>
-                        📞 Gruppo
-                    </button>
                     <button onClick={() => navigate('/main-menu')} 
                         style={{ 
                             padding: '8px 15px', borderRadius: '20px', backgroundColor: '#128C7E',
@@ -606,55 +503,6 @@ function FamilyChat() {
                     </form>
                 </div>
             </div>
-
-            {/* Pop-up per la chiamata in arrivo */}
-            {incomingCall && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Chiamata in arrivo da {incomingCall.callerUsername}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleAcceptCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#25D366', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Accetta</button>
-                        <button onClick={handleRejectCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Rifiuta</button>
-                    </div>
-                </div>
-            )}
-            
-            {/* Nuovo pop-up per avviso al chiamante */}
-            {isCalling && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Avviso importante!
-                    </div>
-                    <div style={{ fontSize: '1em', marginBottom: '20px' }}>
-                        Assicurati che l'utente ricevente abbia l'app aperta sulla pagina della chat per ricevere la notifica di chiamata.
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleConfirmCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#34B7F1', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Ho capito, chiama</button>
-                        <button onClick={handleCancelCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Annulla</button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

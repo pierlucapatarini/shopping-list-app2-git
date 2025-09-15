@@ -1,364 +1,257 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
-function Videochiamate() {
-    const [user, setUser] = useState(null);
-    const [familyMembers, setFamilyMembers] = useState([]);
-    const [onlineMembers, setOnlineMembers] = useState([]);
-    const [incomingCall, setIncomingCall] = useState(null);
-    const [isCalling, setIsCalling] = useState(false);
-    const [selectedDirectCallUser, setSelectedDirectCallUser] = useState(null);
-    const [error, setError] = useState(null);
-    const [loading, setLoading] = useState(true);
-    
-    const navigate = useNavigate();
+const ICE_SERVERS = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+  ],
+  iceCandidatePoolSize: 10,
+};
 
-    useEffect(() => {
-        let presenceChannel = null;
-        let callChannel = null;
+function VideoCallPage() {
+  const { remoteUserId } = useParams();
+  const navigate = useNavigate();
 
-        const setupRealtime = async (userId) => {
-            try {
-                // Canale per la videochiamata diretta
-                callChannel = supabase.channel(`direct-video-call-${userId}`);
-                callChannel.on('broadcast', { event: 'call-notification' }, payload => {
-                    console.log('Chiamata ricevuta:', payload);
-                    setIncomingCall(payload.payload.senderId);
-                }).subscribe();
+  const localVideoRef = useRef();
+  const remoteVideoRef = useRef();
+  const pc = useRef(null);
+  const channel = useRef(null);
+  const localStream = useRef(null);
 
-                // Canale per la presenza
-                const { data: profileData, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('family_group')
-                    .eq('id', userId)
-                    .single();
+  const [status, setStatus] = useState('Inizializzazione...');
+  const [isMuted, setIsMuted] = useState(false);
+  const [isVideoOff, setIsVideoOff] = useState(false);
 
-                if (profileError) {
-                    throw profileError;
-                }
-
-                if (profileData) {
-                    presenceChannel = supabase.channel(`family-presence-${profileData.family_group}`, {
-                        config: {
-                            presence: { key: userId }
-                        }
-                    });
-                    
-                    presenceChannel.on('presence', { event: 'sync' }, () => {
-                        const presenceState = presenceChannel.presenceState();
-                        const onlineIds = Object.keys(presenceState);
-                        console.log('Membri online:', onlineIds);
-                        setOnlineMembers(onlineIds);
-                    });
-                    
-                    presenceChannel.on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                        console.log('Utente entrato:', key);
-                    });
-                    
-                    presenceChannel.on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                        console.log('Utente uscito:', key);
-                    });
-                    
-                    await presenceChannel.subscribe();
-                }
-
-                return () => {
-                    if (callChannel) {
-                        console.log('Chiusura canale chiamate');
-                        supabase.removeChannel(callChannel);
-                    }
-                    if (presenceChannel) {
-                        console.log('Chiusura canale presenza');
-                        supabase.removeChannel(presenceChannel);
-                    }
-                };
-            } catch (err) {
-                console.error('Errore nel setup realtime:', err);
-                setError('Errore nella configurazione dei canali real-time');
-                throw err;
-            }
-        };
-
-        const fetchFamilyMembers = async () => {
-            try {
-                setError(null);
-                setLoading(true);
-
-                const { data: userData, error: authError } = await supabase.auth.getUser();
-                if (authError || !userData?.user) {
-                    console.error('Errore autenticazione:', authError);
-                    navigate('/');
-                    return;
-                }
-                setUser(userData.user);
-
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('family_group')
-                    .eq('id', userData.user.id)
-                    .single();
-
-                if (profileError || !profile) {
-                    console.error("Errore nel recupero del profilo:", profileError);
-                    setError("Impossibile recuperare il profilo utente");
-                    return;
-                }
-
-                const { data: members, error: membersError } = await supabase
-                    .from('profiles')
-                    .select('id, username')
-                    .eq('family_group', profile.family_group);
-
-                if (membersError) {
-                    console.error("Errore nel recupero dei membri:", membersError);
-                    setError("Impossibile recuperare i membri della famiglia");
-                    return;
-                }
-
-                console.log('Membri famiglia caricati:', members);
-                setFamilyMembers(members || []);
-                
-                await setupRealtime(userData.user.id);
-                
-            } catch (err) {
-                console.error('Errore generale:', err);
-                setError('Errore nel caricamento dei dati');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchFamilyMembers();
-    }, [navigate]);
-
-    const checkMediaPermissions = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({ 
-                video: true, 
-                audio: true 
-            });
-            stream.getTracks().forEach(track => track.stop());
-            return true;
-        } catch (err) {
-            console.error('Permessi media negati:', err);
-            setError('È necessario consentire l\'accesso a videocamera e microfono per effettuare videochiamate');
-            return false;
-        }
-    };
-
-    const handleStartCall = async (userId) => {
-        const hasPermissions = await checkMediaPermissions();
-        if (!hasPermissions) return;
-        
-        setSelectedDirectCallUser(userId);
-        setIsCalling(true);
-        setError(null);
-    };
-
-    const handleCancelCall = () => {
-        setIsCalling(false);
-        setSelectedDirectCallUser(null);
-        setError(null);
-    };
-
-    const handleConfirmCall = async () => {
-        try {
-            setIsCalling(false);
-            if (!user || !selectedDirectCallUser) {
-                setError('Errore nei dati della chiamata');
-                return;
-            }
-
-            console.log('Invio notifica chiamata a:', selectedDirectCallUser);
-            const channel = supabase.channel(`direct-video-call-${selectedDirectCallUser}`);
-            await channel.subscribe();
-            
-            const success = await channel.send({
-                type: 'broadcast',
-                event: 'call-notification',
-                payload: {
-                    senderId: user.id,
-                    recipientId: selectedDirectCallUser,
-                    timestamp: new Date().toISOString()
-                }
-            });
-
-            console.log('Notifica inviata:', success);
-
-            // Piccolo delay per assicurarsi che la notifica sia stata inviata
-            setTimeout(() => {
-                navigate(`/video-call-page/${selectedDirectCallUser}`);
-            }, 500);
-            
-        } catch (err) {
-            console.error('Errore nell\'invio della chiamata:', err);
-            setError('Errore nell\'invio della chiamata');
-            setSelectedDirectCallUser(null);
-        }
-    };
-
-    const handleAcceptCall = async () => {
-        try {
-            const hasPermissions = await checkMediaPermissions();
-            if (!hasPermissions) return;
-            
-            console.log('Accettazione chiamata da:', incomingCall);
-            navigate(`/video-call-page/${incomingCall}`);
-            setIncomingCall(null);
-            setError(null);
-        } catch (err) {
-            console.error('Errore nell\'accettare la chiamata:', err);
-            setError('Errore nell\'accettare la chiamata');
-        }
-    };
-
-    const handleRejectCall = () => {
-        console.log('Chiamata rifiutata da:', incomingCall);
-        setIncomingCall(null);
-        setError(null);
-    };
-
-    const isOnline = (memberId) => onlineMembers.includes(memberId);
-
-    const remoteUser = selectedDirectCallUser ? familyMembers.find(m => m.id === selectedDirectCallUser) : null;
-    const incomingCaller = incomingCall ? familyMembers.find(m => m.id === incomingCall) : null;
-
-    if (loading) {
-        return (
-            <div style={{ 
-                padding: '20px', backgroundColor: '#f0f2f5', minHeight: '100vh', 
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: 'Arial, sans-serif' 
-            }}>
-                <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.5em', marginBottom: '10px' }}>⏳</div>
-                    <div>Caricamento...</div>
-                </div>
-            </div>
-        );
+  const handleHangUp = () => {
+    if (channel.current) {
+        channel.current.send({
+            type: 'broadcast',
+            event: 'webrtc-signal',
+            payload: { type: 'hang-up' },
+        });
     }
+    if (localStream.current) {
+        localStream.current.getTracks().forEach(track => track.stop());
+    }
+    if (pc.current) pc.current.close();
+    navigate('/pagina10-videochiamate');
+  };
+
+  useEffect(() => {
+    let cleanupDone = false;
+    const initCall = async () => {
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      if (userError || !userData?.user) {
+        navigate('/');
+        return;
+      }
+      const currentUser = userData.user;
+
+      if (!remoteUserId) {
+        navigate('/pagina10-videochiamate');
+        return;
+      }
+      
+      const sortedIds = [currentUser.id, remoteUserId].sort();
+      const isCaller = sortedIds[0] === currentUser.id;
+
+      try {
+        setStatus("Acquisizione videocamera e microfono...");
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        if (cleanupDone) return;
+
+        localStream.current = stream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
+
+        pc.current = new RTCPeerConnection(ICE_SERVERS);
+        stream.getTracks().forEach(track => pc.current.addTrack(track, stream));
+
+        pc.current.onicecandidate = (e) => {
+          if (e.candidate) {
+            channel.current.send({
+              type: 'broadcast',
+              event: 'webrtc-signal',
+              payload: {
+                senderId: currentUser.id,
+                type: 'ice-candidate',
+                candidate: e.candidate,
+              },
+            });
+          }
+        };
+
+        pc.current.ontrack = (e) => {
+          if (remoteVideoRef.current && e.streams && e.streams[0]) {
+            remoteVideoRef.current.srcObject = e.streams[0];
+            setStatus("Chiamata in corso...");
+          }
+        };
+
+        pc.current.onconnectionstatechange = () => {
+          if (['disconnected', 'failed', 'closed'].includes(pc.current.connectionState)) {
+            handleHangUp();
+          }
+        };
+
+        const callChannelName = sortedIds.join('-');
+        channel.current = supabase.channel(`direct-video-call-${callChannelName}`);
+
+        channel.current.on('broadcast', { event: 'webrtc-signal' }, (payload) => {
+          handleWebRTCSignals(payload, currentUser.id, isCaller);
+        }).subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            if (isCaller) {
+              createOffer(pc.current, currentUser.id);
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error("Errore nell'inizializzazione della chiamata:", error);
+        if (error.name === 'NotAllowedError' || error.name === 'NotFoundError') {
+          setStatus("Errore: per favore, concedi i permessi per videocamera e microfono.");
+        } else {
+          setStatus("Errore: impossibile avviare la chiamata.");
+        }
+      }
+    };
+
+    const createOffer = async (peerConnection, senderId) => {
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      channel.current.send({
+        type: 'broadcast',
+        event: 'webrtc-signal',
+        payload: {
+          senderId: senderId,
+          type: 'offer',
+          offer: peerConnection.localDescription,
+        },
+      });
+      setStatus('Offerta inviata, in attesa di risposta...');
+    };
+
+    const handleWebRTCSignals = async ({ payload }, currentUserId, isCaller) => {
+      if (payload.senderId === currentUserId) return;
+
+      switch (payload.type) {
+        case 'offer':
+          if (!isCaller) {
+            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+            const answer = await pc.current.createAnswer();
+            await pc.current.setLocalDescription(answer);
+            channel.current.send({
+              type: 'broadcast',
+              event: 'webrtc-signal',
+              payload: {
+                senderId: currentUserId,
+                type: 'answer',
+                answer: pc.current.localDescription,
+              },
+            });
+            setStatus('Risposta inviata, connessione in corso...');
+          }
+          break;
+
+        case 'answer':
+          if (isCaller) {
+            await pc.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
+          }
+          break;
+
+        case 'ice-candidate':
+          try {
+            await pc.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
+          } catch (err) {
+            console.error('Errore ICE:', err);
+          }
+          break;
+
+        case 'hang-up':
+          handleHangUp();
+          break;
+
+        default:
+          break;
+      }
+    };
     
-    return (
-        <div style={{ padding: '20px', backgroundColor: '#f0f2f5', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>
-            <h1 style={{ color: '#075E54', textAlign: 'center' }}>Chiama un membro della famiglia</h1>
-            
-            {error && (
-                <div style={{
-                    backgroundColor: '#ffe6e6', padding: '15px', borderRadius: '10px',
-                    border: '1px solid #ff9999', marginBottom: '20px', color: '#cc0000'
-                }}>
-                    <strong>Errore:</strong> {error}
-                </div>
-            )}
+    initCall();
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', marginTop: '20px' }}>
-                {familyMembers
-                    .filter(member => member.id !== user?.id)
-                    .map(member => (
-                        <div key={member.id} style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '15px', backgroundColor: 'white', borderRadius: '10px',
-                            boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <span style={{
-                                    width: '12px', height: '12px', borderRadius: '50%',
-                                    backgroundColor: isOnline(member.id) ? '#25D366' : '#999'
-                                }}></span>
-                                <span style={{ fontSize: '1.2em', fontWeight: 'bold' }}>{member.username}</span>
-                                <span style={{ fontSize: '0.9em', color: '#666' }}>
-                                    {isOnline(member.id) ? 'Online' : 'Offline'}
-                                </span>
-                            </div>
-                            <button 
-                                onClick={() => handleStartCall(member.id)} 
-                                disabled={!isOnline(member.id)}
-                                style={{
-                                    padding: '10px 20px', 
-                                    backgroundColor: isOnline(member.id) ? '#075E54' : '#ccc', 
-                                    color: 'white',
-                                    border: 'none', borderRadius: '20px', 
-                                    cursor: isOnline(member.id) ? 'pointer' : 'not-allowed',
-                                    fontSize: '1em'
-                                }}
-                            >
-                                {isOnline(member.id) ? 'Chiama' : 'Offline'}
-                            </button>
-                        </div>
-                    ))}
-                
-                {familyMembers.filter(member => member.id !== user?.id).length === 0 && (
-                    <div style={{ 
-                        textAlign: 'center', padding: '40px', color: '#666',
-                        backgroundColor: 'white', borderRadius: '10px'
-                    }}>
-                        Nessun membro della famiglia disponibile
-                    </div>
-                )}
-            </div>
+    return () => {
+        cleanupDone = true;
+        if (localStream.current) localStream.current.getTracks().forEach(track => track.stop());
+        if (pc.current) pc.current.close();
+        if (channel.current) supabase.removeChannel(channel.current);
+    };
+  }, [remoteUserId, navigate]);
 
-            {/* Modal per conferma chiamata */}
-            {isCalling && remoteUser && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', 
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Chiama {remoteUser.username}
-                    </div>
-                    <div style={{ fontSize: '1em', marginBottom: '20px' }}>
-                        Stai per avviare una videochiamata.
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleConfirmCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#34B7F1', 
-                            color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>
-                            Chiama
-                        </button>
-                        <button onClick={handleCancelCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', 
-                            color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>
-                            Annulla
-                        </button>
-                    </div>
-                </div>
-            )}
+  const handleToggleMute = () => {
+    if (localStream.current) {
+      localStream.current.getAudioTracks().forEach(track => track.enabled = !track.enabled);
+      setIsMuted(prev => !prev);
+    }
+  };
 
-            {/* Modal per chiamata in arrivo */}
-            {incomingCall && incomingCaller && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', 
-                    boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.4em', marginBottom: '10px' }}>📞</div>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Chiamata in arrivo da {incomingCaller.username}!
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleAcceptCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#25D366', 
-                            color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>
-                            Accetta
-                        </button>
-                        <button onClick={handleRejectCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', 
-                            color: 'white', border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>
-                            Rifiuta
-                        </button>
-                    </div>
-                </div>
-            )}
-        </div>
-    );
+  const handleToggleVideo = () => {
+    if (localStream.current) {
+      localStream.current.getVideoTracks().forEach(track => track.enabled = !track.enabled);
+      setIsVideoOff(prev => !prev);
+    }
+  };
+
+  return (
+    <div style={{
+      height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#e5ddd5',
+      fontFamily: 'Arial, sans-serif'
+    }}>
+      <div style={{ padding: '15px', backgroundColor: '#075E54', color: 'white', textAlign: 'center' }}>
+        <h1 style={{ margin: 0, fontSize: '1.5em' }}>Videochiamata</h1>
+        <div style={{ marginTop: '5px', fontSize: '1em' }}>{status}</div>
+      </div>
+
+      <div style={{
+        flex: 1, position: 'relative', display: 'flex', justifyContent: 'center', alignItems: 'center'
+      }}>
+        <video ref={remoteVideoRef} autoPlay playsInline style={{
+          width: '100%', height: '100%', objectFit: 'cover',
+          backgroundColor: '#333', transform: 'scaleX(-1)'
+        }} />
+        <video ref={localVideoRef} autoPlay playsInline muted style={{
+          position: 'absolute', bottom: '20px', right: '20px', width: '120px',
+          height: '90px', borderRadius: '15px', border: '3px solid white',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.3)', objectFit: 'cover', transform: 'scaleX(-1)'
+        }} />
+      </div>
+
+      <div style={{
+        display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px',
+        backgroundColor: '#075E54', boxShadow: '0 -2px 10px rgba(0,0,0,0.1)', zIndex: 1000
+      }}>
+        <button onClick={handleToggleMute} style={{
+          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+          backgroundColor: isMuted ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>{isMuted ? '🔇' : '🎤'}</button>
+
+        <button onClick={handleToggleVideo} style={{
+          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+          backgroundColor: isVideoOff ? '#ff4d4f' : '#25D366', color: 'white', fontSize: '24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>{isVideoOff ? '📷' : '📹'}</button>
+
+        <button onClick={handleHangUp} style={{
+          width: '60px', height: '60px', borderRadius: '50%', border: 'none', cursor: 'pointer',
+          backgroundColor: '#ff4d4f', color: 'white', fontSize: '24px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>📞</button>
+      </div>
+    </div>
+  );
 }
 
-export default Videochiamate;
+export default VideoCallPage;

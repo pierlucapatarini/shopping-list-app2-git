@@ -15,19 +15,19 @@ function FamilyChat() {
     const [familyMembers, setFamilyMembers] = useState([]);
     const [onlineMembers, setOnlineMembers] = useState([]);
     const [selectedDirectCallUser, setSelectedDirectCallUser] = useState('');
-    const [incomingCall, setIncomingCall] = useState(null);
-    const [isCalling, setIsCalling] = useState(false);
-    
+
     const messagesEndRef = useRef(null);
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
 
+    // Scorri in fondo alla chat
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     };
 
+    // Inizializzazione: recupera i dati, imposta la chat in tempo reale e la presenza
     useEffect(() => {
         let chatChannel = null;
         let presenceChannel = null;
@@ -35,9 +35,10 @@ function FamilyChat() {
         const initChatAndPresence = async () => {
             setLoading(true);
             try {
+                // Ottieni l'utente corrente
                 const { data: { user }, error: userError } = await supabase.auth.getUser();
                 if (userError || !user) {
-                    navigate('/login');
+                    navigate('/login'); // Reindirizza al login se non c'è l'utente
                     return;
                 }
                 setUser(user);
@@ -46,6 +47,7 @@ function FamilyChat() {
                 if (!fg) return;
                 setFamilyGroup(fg);
 
+                // Recupera i membri iniziali della famiglia
                 const { data: profilesData, error: profilesError } = await supabase
                     .from('profiles')
                     .select('id, username')
@@ -53,6 +55,7 @@ function FamilyChat() {
                 if (profilesError) console.error('Errore nel recupero dei profili:', profilesError);
                 setFamilyMembers(profilesData || []);
 
+                // Recupera i messaggi iniziali con il profilo del mittente
                 const { data: messagesData, error: fetchError } = await supabase
                     .from('messages')
                     .select('*, profiles:sender_id(username)')
@@ -62,6 +65,9 @@ function FamilyChat() {
                 setMessages(messagesData || []);
                 scrollToBottom();
 
+                // ----------------------------------------------------
+                // Canale di presenza Supabase (da Pagina2_accesori.js)
+                // ----------------------------------------------------
                 presenceChannel = supabase
                     .channel('family-group-presence')
                     .on('presence', { event: 'sync' }, () => {
@@ -83,6 +89,9 @@ function FamilyChat() {
                         }
                     });
 
+                // ----------------------------------------------------
+                // Canale di chat in tempo reale Supabase (da Pagina2_logica.js)
+                // ----------------------------------------------------
                 chatChannel = supabase
                     .channel(`messages-${fg}`)
                     .on(
@@ -96,6 +105,7 @@ function FamilyChat() {
                         async (payload) => {
                             if (!payload.new) return;
                             
+                            // EVITA DUPLICATI: ignora il messaggio se è stato inviato da questo utente
                             if (payload.new.sender_id === user.id) return;
                             
                             const senderUsername = profilesData?.find(m => m.id === payload.new.sender_id)?.username || 'Sconosciuto';
@@ -108,22 +118,6 @@ function FamilyChat() {
                             scrollToBottom();
                         }
                     )
-                    .on('broadcast', { event: 'direct-call-signal' }, ({ payload }) => {
-                        console.log('Ricevuto broadcast direct-call-signal:', payload); // Debug: verifica il payload ricevuto
-                        if (payload.recipientId === user.id && payload.senderId !== user.id) {
-                            const callerUsername = familyMembers.find(m => m.id === payload.senderId)?.username;
-                            setIncomingCall({
-                                callerId: payload.senderId,
-                                callerUsername,
-                            });
-                            try {
-                                const audio = new Audio('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
-                                audio.play().catch(e => console.error("Errore riproduzione audio:", e));
-                            } catch (e) {
-                                console.error("Errore creazione oggetto Audio:", e);
-                            }
-                        }
-                    })
                     .subscribe((status) => {
                         setRealtimeStatus(status);
                     });
@@ -143,10 +137,12 @@ function FamilyChat() {
         };
     }, []);
 
+    // Effetto per la gestione dello scorrimento automatico con i nuovi messaggi
     useEffect(() => {
         scrollToBottom();
     }, [messages]);
 
+    // Effetto per la chiusura delle opzioni file al clic del documento
     useEffect(() => {
         const handleDocClick = () => setOpenFileOptionsId(null);
         document.addEventListener('click', handleDocClick);
@@ -175,6 +171,7 @@ function FamilyChat() {
         let fileName = selectedFile?.name || null;
         let fileType = selectedFile?.type || null;
 
+        // Carica il file se selezionato
         if (selectedFile) {
             setUploadingFile(true);
             try {
@@ -198,6 +195,7 @@ function FamilyChat() {
             }
         }
         
+        // Prepara i dati del messaggio
         const messageData = {
             content: newMessage || (fileName ? `📎 ${fileName}` : ''),
             family_group: familyGroup,
@@ -207,11 +205,13 @@ function FamilyChat() {
             file_type: fileType,
         };
         
+        // Aggiungi il messaggio allo stato locale all'istante (fallback)
+        // Questo fornisce una migliore esperienza utente
         setMessages((prev) => [
             ...prev,
             {
                 ...messageData,
-                id: Math.random(),
+                id: Math.random(), // ID temporaneo per il rendering locale
                 created_at: new Date().toISOString(),
                 profiles: { username: user.user_metadata.username || 'Tu' },
             },
@@ -221,12 +221,14 @@ function FamilyChat() {
         setSelectedFile(null);
         scrollToBottom();
 
+        // Inserisci nel database
         const { error } = await supabase
             .from('messages')
             .insert(messageData);
 
         if (error) {
             console.error('Errore nell\'invio del messaggio:', error);
+            // Opzionale: gestisci l'errore annullando la visualizzazione del messaggio locale
         }
     };
 
@@ -278,34 +280,34 @@ function FamilyChat() {
         setOpenFileOptionsId(null);
     };
 
-    const handleArchivia = (e, file) => {
-        e.stopPropagation();
-        setOpenFileOptionsId(null);
-        navigate('/pagina8-archivio-documenti', {
-            state: { 
-                fileToArchive: {
-                    fileName: file.file_name, 
-                    fileUrl: file.file_url
-                } 
-            }
-        });
-    };
+    // In Pagina2_FamilyChat.js, all'interno della funzione `handleArchivia`
+
+const handleArchivia = (e, file) => {
+    e.stopPropagation();
+    setOpenFileOptionsId(null);
+    navigate('/pagina8-archivio-documenti', {
+        state: { 
+            fileToArchive: {
+                fileName: file.file_name, 
+                fileUrl: file.file_url
+            } 
+        }
+    });
+};
 
     const renderMessageContent = (msg) => {
         const hasFile = msg.file_url && msg.file_name;
         const isImage = hasFile && msg.file_type?.startsWith('image/');
-        const isAutoMessage = msg.sender_id === 'SYSTEM' || !msg.profiles?.username;
 
         return (
             <div>
-                {!isAutoMessage && (
-                    <div style={{
-                        fontWeight: 'bold', fontSize: '0.85em',
-                        color: isMyMessage(msg.sender_id) ? '#0a5f26' : '#0366d6', marginBottom: '4px'
-                    }}>
-                        {msg.profiles?.username || 'Sconosciuto'}
-                    </div>
-                )}
+                <div style={{
+                    fontWeight: 'bold', fontSize: '0.85em',
+                    color: isMyMessage(msg.sender_id) ? '#0a5f26' : '#0366d6', marginBottom: '4px'
+                }}>
+                    {msg.profiles?.username || 'Sconosciuto'}
+                </div>
+
                 {hasFile && (
                     <div style={{ marginBottom: msg.content && msg.content !== `📎 ${msg.file_name}` ? '8px' : '0', cursor: 'pointer' }}
                         onClick={(e) => handleClickFile(e, msg.id)}>
@@ -339,7 +341,8 @@ function FamilyChat() {
                         )}
                     </div>
                 )}
-                {msg.content && (
+
+                {msg.content && msg.content !== `📎 ${msg.file_name}` && (
                     <div style={{ fontSize: '1em', lineHeight: '1.4', margin: 0 }}>{msg.content}</div>
                 )}
             </div>
@@ -347,7 +350,6 @@ function FamilyChat() {
     };
 
     const isMyMessage = (messageSenderId) => user && messageSenderId === user.id;
-    const isSystemMessage = (messageSenderId) => messageSenderId === 'SYSTEM';
 
     const formatTimestamp = (timestamp) => {
         if (!timestamp) return '';
@@ -356,58 +358,11 @@ function FamilyChat() {
     };
 
     const handleDirectCall = () => {
-        if (!selectedDirectCallUser || selectedDirectCallUser === user.id) {
+        if (selectedDirectCallUser && selectedDirectCallUser !== user.id) {
+            navigate('/video-chat-diretta', { state: { familyGroup, user, remoteUserId: selectedDirectCallUser } });
+        } else {
             alert('Per avviare una chiamata diretta, devi selezionare un altro membro della famiglia.');
-            return;
         }
-        setIsCalling(true);
-    };
-
-    const handleConfirmCall = async () => {
-        setIsCalling(false);
-        if (!user || !familyGroup || !selectedDirectCallUser) return;
-
-        const calleeUsername = familyMembers.find(m => m.id === selectedDirectCallUser)?.username;
-        const callerUsername = user.user_metadata.username;
-
-        // Step 1: Invia un messaggio automatico nella chat (ora usa l'ID utente valido)
-        await supabase
-            .from('messages')
-            .insert({
-                content: `${callerUsername} sta provando a videochiamare ${calleeUsername}.`,
-                family_group: familyGroup,
-                sender_id: user.id, // Corretto: ora usa l'ID dell'utente corrente
-            });
-
-        // Step 2: Invia il segnale di chiamata tramite broadcast
-        const channel = supabase.channel(`direct-call-signal-${familyGroup}`);
-        await channel.subscribe();
-        channel.send({
-            type: 'broadcast',
-            event: 'direct-call-signal',
-            payload: {
-                senderId: user.id,
-                recipientId: selectedDirectCallUser,
-            }
-        });
-        
-        // Step 3: Reindirizza il chiamante alla pagina della chiamata
-        navigate('/video-chat-diretta', { state: { familyGroup, user, remoteUserId: selectedDirectCallUser, isCaller: true } });
-    };
-
-    const handleCancelCall = () => {
-        setIsCalling(false);
-    };
-
-    const handleAcceptCall = () => {
-        setIncomingCall(null);
-        navigate('/video-chat-diretta', {
-            state: { familyGroup, user, remoteUserId: incomingCall.callerId, isCaller: false }
-        });
-    };
-
-    const handleRejectCall = () => {
-        setIncomingCall(null);
     };
 
     return (
@@ -461,7 +416,7 @@ function FamilyChat() {
                                 boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                                 transition: 'all 0.3s ease', opacity: selectedDirectCallUser ? 1 : 0.6
                             }}>
-                            📞 Singolo
+                            📞 Diretta
                         </button>
                     </div>
                     <button onClick={() => alert('La videochiamata di gruppo non è ancora implementata con una soluzione gratuita.')} 
@@ -471,28 +426,8 @@ function FamilyChat() {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                             transition: 'all 0.3s ease'
                         }}>
-                        📞 Gruppo
+                        🤝 Videochiamata di gruppo
                     </button>
-
-                     
-                    <button onClick={() => navigate('/video-chat-diretta')} 
-                        style={{ 
-                            padding: '8px 15px', borderRadius: '20px', backgroundColor: '#128C7E',
-                            color: 'white', border: 'none', cursor: 'pointer', width: '100%',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
-                            transition: 'all 0.3s ease'
-                        }}>
-                        ← SottoPagina2Videochiamata
-                    </button>
-
-
-
-
-
-
-
-
-                    
                     <button onClick={() => navigate('/main-menu')} 
                         style={{ 
                             padding: '8px 15px', borderRadius: '20px', backgroundColor: '#128C7E',
@@ -500,12 +435,8 @@ function FamilyChat() {
                             boxShadow: '0 2px 6px rgba(0,0,0,0.2)', fontWeight: 'bold', fontSize: '0.9em',
                             transition: 'all 0.3s ease'
                         }}>
-                        ← Menu
+                        ← RitornoMenuPrincipale
                     </button>
-
-
-
-
                 </div>
             </div>
 
@@ -630,55 +561,6 @@ function FamilyChat() {
                     </form>
                 </div>
             </div>
-
-            {/* Pop-up per la chiamata in arrivo */}
-            {incomingCall && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Chiamata in arrivo da {incomingCall.callerUsername}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleAcceptCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#25D366', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Accetta</button>
-                        <button onClick={handleRejectCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Rifiuta</button>
-                    </div>
-                </div>
-            )}
-            
-            {/* Nuovo pop-up per avviso al chiamante */}
-            {isCalling && (
-                <div style={{
-                    position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-                    backgroundColor: 'white', padding: '30px', borderRadius: '15px', boxShadow: '0 8px 20px rgba(0,0,0,0.3)',
-                    zIndex: 2000, textAlign: 'center', width: '300px'
-                }}>
-                    <div style={{ fontSize: '1.2em', fontWeight: 'bold', marginBottom: '15px' }}>
-                        Avviso importante!
-                    </div>
-                    <div style={{ fontSize: '1em', marginBottom: '20px' }}>
-                        Assicurati che l'utente ricevente abbia l'app aperta sulla pagina della chat per ricevere la notifica di chiamata.
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-around', gap: '10px' }}>
-                        <button onClick={handleConfirmCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#34B7F1', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Ho capito, chiama</button>
-                        <button onClick={handleCancelCall} style={{
-                            padding: '10px 20px', borderRadius: '20px', backgroundColor: '#ff4d4f', color: 'white',
-                            border: 'none', cursor: 'pointer', fontWeight: 'bold'
-                        }}>Annulla</button>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
