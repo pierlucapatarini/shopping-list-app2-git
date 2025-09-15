@@ -40,16 +40,14 @@ function FamilyChat() {
 
             const registration = await navigator.serviceWorker.ready;
             
-            // Ottieni la sottoscrizione
             const subscription = await registration.pushManager.subscribe({
                 userVisibleOnly: true,
-                applicationServerKey: 'IL_TUO_APPLICATION_SERVER_KEY_VAPID_PUBBLICO' // Sostituisci con la tua chiave
+                applicationServerKey: 'BLDdQAO8gueA1ptO87Bwodv5ywLyAfWYRGtMQZI9UrD2PYlk431sghgAhlZtnUULPM-Uc6MajxQwnmrnfe0qrPE' // INCOLLA QUI LA TUA CHIAVE PUBBLICA
             });
             
-            // Salva la sottoscrizione nel database
             const { error } = await supabase
                 .from('push_subscriptions')
-                .insert({
+                .upsert({
                     user_id: user.id,
                     subscription: subscription
                 });
@@ -119,7 +117,6 @@ function FamilyChat() {
                         }
                     });
                 
-                // Chiamata alla funzione per il setup delle notifiche push
                 setupPushNotifications();
 
                 chatChannel = supabase

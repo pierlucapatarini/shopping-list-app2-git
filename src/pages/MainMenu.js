@@ -21,12 +21,23 @@ function MainMenu() {
       </header>
 
       <main className="main-content main-menu-grid">
+
+
+
         {/* Pagina 1 - Lista della Spesa */}
         <button
           onClick={() => navigate('/pagina1-shopping-list')}
           className="menu-button"
         >
           🛒 Pagina 1<br />Lista della Spesa
+        </button>
+
+        {/* Pagina 4 - Archivio Prodotti Spesa */}
+        <button
+          onClick={() => navigate('/pagina4-archivio-prodotti')}
+          className="menu-button"
+        >
+          📦 Pagina 4<br />Archivio Prodotti
         </button>
 
         {/* Pagina 2 - Chat di Famiglia */}
@@ -36,6 +47,8 @@ function MainMenu() {
         >
           ✅ Pagina 2<br />Chat di Famiglia
         </button>
+
+
 
         {/* Pagina 3 - Ricette AI */}
         <button
@@ -59,13 +72,7 @@ function MainMenu() {
 
 
 
-        {/* Pagina 4 - Archivio Prodotti */}
-        <button
-          onClick={() => navigate('/pagina4-archivio-prodotti')}
-          className="menu-button"
-        >
-          📦 Pagina 4<br />Archivio Prodotti
-        </button>
+        
 
         {/* Pagina 5 - Offerte Volantini */}
         <button
