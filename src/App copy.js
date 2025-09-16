@@ -15,11 +15,73 @@ import Pagina7_GestioneFarmaci from './pages/Pagina7_GestioneFarmaci';
 import Pagina8_ArchivioDocumenti from './pages/Pagina8_ArchivioDocumenti';
 import Pagina9_GestioneUtenti from './pages/Pagina9_GestioneUtenti';
 
-// Importa i nuovi componenti per la videochiamata
-import Videochiamate from './pages/Pagina10_VideoChiamata';
-import VideoCallPage from './pages/SottoPagina10_VideoChiamata';
+import VideoCallPage from './components/VideoCallPage';
+import Videochiamate from './components/Videochiamate';
 
+// 🔑 Chiave pubblica VAPID (deve corrispondere a quella usata dal backend/edge function)
+const VAPID_PUBLIC_KEY = 'BA1yRnhH-u3I41onTHomTbQoxRpZxwhpPLnNT8N_zqNI8WeUZwSVf8ln_AmS9f1Ec6dwUBR1erYk76pomNKfSds';
 
+// Utility per convertire Base64 → Uint8Array (richiesto per applicationServerKey)
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// ... (codice precedente)
+
+const setupPushNotifications = async (session) => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Le notifiche push non sono supportate da questo browser.');
+    return;
+  }
+
+  try {
+    // Verifica che il service worker sia accessibile
+    const swUrl = '/sw.js';
+    const swResponse = await fetch(swUrl);
+    if (!swResponse.ok) {
+      throw new Error(`Service worker non trovato: ${swResponse.status}`);
+    }
+
+    const registration = await navigator.serviceWorker.register(swUrl, {
+      scope: '/',
+      updateViaCache: 'none'
+    });
+
+    console.log('✅ Service worker registrato:', registration);
+
+    // Attendi che il service worker sia attivo
+    if (registration.installing) {
+      await new Promise(resolve => {
+        registration.installing.addEventListener('statechange', (e) => {
+          if (e.target.state === 'activated') {
+            resolve();
+          }
+        });
+      });
+    }
+
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('❌ Permesso di notifica negato.');
+      return;
+    }
+
+    // ... resto del codice rimane uguale
+
+  } catch (error) {
+    console.error('❌ Errore configurazione notifiche push:', error);
+    console.error('Dettagli errore:', error.message, error.stack);
+  }
+};
+
+// ... (resto del codice)
 
 function App() {
   const [session, setSession] = useState(null);
@@ -37,10 +99,15 @@ function App() {
       }
     );
 
+    // Registra notifiche push se utente autenticato
+    if (session) {
+      setupPushNotifications(session);
+    }
+
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [session]);
 
   if (loading) {
     return <div style={{ textAlign: 'center', padding: '20px' }}>Caricamento...</div>;
@@ -62,10 +129,8 @@ function App() {
         <Route path="/pagina7-gestione-farmaci" element={session ? <Pagina7_GestioneFarmaci /> : <Navigate to="/" />} />
         <Route path="/pagina8-archivio-documenti" element={session ? <Pagina8_ArchivioDocumenti /> : <Navigate to="/" />} />
         <Route path="/pagina9-gestione-utenti" element={session ? <Pagina9_GestioneUtenti /> : <Navigate to="/" />} />
-        
-        {/* Rotte della videochiamata (Pagina 10) */}
-        <Route path="/pagina10-VideoChiamata" element={session ? <Videochiamate /> : <Navigate to="/" />} />
-        <Route path="/video-call-page/:remoteUserId" element={session ? <VideoCallPage /> : <Navigate to="/" />} />
+        <Route path="/video-call-page/:userId" element={<VideoCallPage />} />
+        <Route path="/pagina10-VideoChiamata" element={<Videochiamate />} />
       </Routes>
     </Router>
   );
